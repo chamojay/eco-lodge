@@ -1,4 +1,4 @@
-// File: D:\Project SDP\test\project1\sdp-frontend\app\layout.tsx
+// File: D:\Project SDP\SDP\eco-lodge\sdp-frontend\app\layout.tsx
 import * as entry from '../../../app/layout.js'
 import type { ResolvingMetadata, ResolvingViewport } from 'next/dist/lib/metadata/types/metadata-interface.js'
 
