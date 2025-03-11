@@ -19,13 +19,13 @@ const StaffLogin = () => {
     const onSubmit = async (data: LoginFormInputs) => {
         try {
             const response = await axios.post('/api/auth/login', data);
-            //const { token, role } = response.data;
+            const { token, role } = response.data;
             
-           // localStorage.setItem('token', token); // Store JWT for authentication
+           localStorage.setItem('token', token); // Store JWT for authentication
             
-           // if (role === 'admin') router.push('/admin-dashboard');
-           // else if (role === 'receptionist') router.push('/reception-dashboard');
-           // else if (role === 'restaurant_cashier') router.push('/restaurant-dashboard');
+           if (role === 'admin') router.push('/admin/dashboard');
+           else if (role === 'receptionist') router.push('/reception/dashboard');
+           else if (role === 'restaurant_cashier') router.push('/restaurant-dashboard');
         } catch (error) {
             console.error('Login failed', error);
             alert('Invalid credentials. Please try again.');
