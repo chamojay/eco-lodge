@@ -1,6 +1,5 @@
 'use client';
 import React, { useState, useEffect, useCallback } from 'react';
-import axios from 'axios';
 import { 
   Box, Drawer, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Toolbar, CssBaseline, 
   AppBar, Typography, IconButton, TextField, Select, MenuItem, Button, Table, TableBody, TableCell, 
@@ -12,6 +11,8 @@ import {
   Logout, Add, Edit, Delete, Search
 } from '@mui/icons-material';
 import { styled } from '@mui/material/styles';
+import { getRooms, createRoom, updateRoom, deleteRoom } from '@/app/services/roomService';
+import { RoomType } from '@/types/roomTypes';
 
 type MenuItemType = {
   id: string;
@@ -24,14 +25,6 @@ type UserType = {
   email: string;
   password: string;
   role: 'reception' | 'cashier' | 'admin';
-};
-
-type RoomType = {
-  RoomID: string;
-  RoomNumber: string;
-  Type: 'Delux' | 'Suite' | 'Standard'|'Cabana';
-  Price: number;
-  Description: string;
 };
 
 const drawerWidth = 240;
@@ -58,8 +51,6 @@ const Main = styled('main', { shouldForwardProp: (prop) => prop !== 'open' })<{ 
   }),
 );
 
-const API_BASE_URL = 'http://localhost:5000/api/rooms'; // Backend URL
-
 const AdminDashboard: React.FC = () => {
   const [open, setOpen] = useState<boolean>(true);
   const [selectedMenu, setSelectedMenu] = useState<string>('overview');
@@ -74,30 +65,23 @@ const AdminDashboard: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch rooms from backend
   const fetchRooms = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await axios.get<RoomType[]>(API_BASE_URL, {
-        params: { 
-          search: searchTerm || undefined, 
-          type: filterType === 'All' ? undefined : filterType 
-        }
-      });
-      setRooms(response.data);
+      const data = await getRooms(searchTerm, filterType);
+      setRooms(data);
     } catch (err) {
       console.error('Fetch rooms error:', err);
       setError('Failed to load rooms');
     } finally {
       setLoading(false);
     }
-  }, [searchTerm, filterType]); // Dependencies include searchTerm and filterType for instant updates
+  }, [searchTerm, filterType]);
 
-  // Fetch rooms on mount and when search/filter changes
   useEffect(() => {
     fetchRooms();
-  }, [fetchRooms]); // fetchRooms is memoized with useCallback
+  }, [fetchRooms]);
 
   const handleDrawerToggle = () => setOpen(!open);
 
@@ -130,13 +114,11 @@ const AdminDashboard: React.FC = () => {
       };
 
       if (currentRoom.RoomID) {
-        // Update room
-        const response = await axios.put<RoomType>(`${API_BASE_URL}/${currentRoom.RoomID}`, roomData);
-        setRooms(rooms.map(room => room.RoomID === currentRoom.RoomID ? response.data : room));
+        const updatedRoom = await updateRoom(currentRoom.RoomID, roomData);
+        setRooms(rooms.map(room => room.RoomID === currentRoom.RoomID ? updatedRoom : room));
       } else {
-        // Create room
-        const response = await axios.post<RoomType>(API_BASE_URL, roomData);
-        setRooms([...rooms, response.data]);
+        const newRoom = await createRoom(roomData);
+        setRooms([...rooms, newRoom]);
       }
       setRoomDialogOpen(false);
     } catch (err) {
@@ -156,7 +138,7 @@ const AdminDashboard: React.FC = () => {
     if (window.confirm('Are you sure you want to delete this room?')) {
       setLoading(true);
       try {
-        await axios.delete(`${API_BASE_URL}/${RoomID}`);
+        await deleteRoom(RoomID);
         setRooms(rooms.filter(room => room.RoomID !== RoomID));
       } catch (err) {
         console.error('Delete room error:', err);

@@ -23,3 +23,4 @@ export type User = {
     email: string;
     role: 'admin' | 'receptionist' | 'staff';
 };
+

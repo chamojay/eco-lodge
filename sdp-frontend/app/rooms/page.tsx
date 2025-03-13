@@ -7,6 +7,7 @@ const RoomsPage = () => {
     { id: 1, name: 'Deluxe Room', price: 200, description: 'A luxurious room with a beautiful view.' },
     { id: 2, name: 'Standard Room', price: 150, description: 'A comfortable room for a pleasant stay.' },
     { id: 3, name: 'Suite', price: 300, description: 'A spacious suite with premium amenities.' },
+    { id: 4, name: 'Cabana', price: 250, description: 'A cozy cabana surrounded by nature.' },
   ];
 
   return (
