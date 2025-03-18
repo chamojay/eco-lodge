@@ -9,12 +9,16 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@date-io/date-fns": "^3.2.1",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.0",
     "@mui/icons-material": "^5.16.14",
     "@mui/material": "^5.16.14",
+    "@mui/x-date-pickers": "^7.27.3",
+    "@mui/x-date-pickers-pro": "^7.27.3",
     "autoprefixer": "^10.4.0",
     "axios": "^1.8.3",
+    "dayjs": "^1.11.13",
     "next": "14.0.0",
     "postcss": "^8.4.0",
     "react": "^18.2.0",

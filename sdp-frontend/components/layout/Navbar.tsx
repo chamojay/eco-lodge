@@ -40,8 +40,8 @@ const Navbar = () => {
 
   const navItems = [
     { text: 'Home', href: '/' },
-    { text: 'Rooms', href: '/rooms' },
-    { text: 'Contact', href: '/contact' },
+    { text: 'Rooms', href: '/web/rooms' },
+    { text: 'Contact', href: '/web/contact' },
   ];
 
   const handleDrawerToggle = () => {

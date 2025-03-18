@@ -100,19 +100,20 @@ const Slideshow = () => {
                 Where Nature Meets Luxury in the Heart of Ella
             </Typography>
             <Button 
-                variant="outlined" 
-                color="inherit" 
-                size="large"
-                sx={{ 
+              variant="outlined" 
+              color="inherit" 
+              size="large"
+              sx={{ 
+              borderWidth: 2,
+              '&:hover': {
                 borderWidth: 2,
-                '&:hover': {
-                    borderWidth: 2,
-                    backgroundColor: 'rgba(255,255,255,0.1)'
-                },
-                textShadow: '2px 2px 4px rgba(0, 0, 0, 0.8)', 
-                }}
+                backgroundColor: 'rgba(255,255,255,0.1)'
+              },
+              textShadow: '2px 2px 4px rgba(0, 0, 0, 0.8)', 
+              }}
+              onClick={() => window.location.href = '/reservation'}
             >
-                Book Your Eco-Stay
+              Book Your Eco-Stay
             </Button>
             </Container>
         </HeroSection>
