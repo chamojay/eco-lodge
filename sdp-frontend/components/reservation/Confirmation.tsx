@@ -6,7 +6,7 @@ const Confirmation = ({ data, onBack }: StepComponentProps) => {
   const calculateTotal = () => {
     if (!data.selectedRoom) return 0;
     const nights = Math.ceil(
-      (data.checkOut!.getTime() - data.checkIn!.getTime()) / (1000 * 3600 * 24)
+      data.checkOut!.diff(data.checkIn!, 'day')
     );
     let total = data.selectedRoom.price * nights;
     
@@ -25,10 +25,10 @@ const Confirmation = ({ data, onBack }: StepComponentProps) => {
 
       <Stack spacing={2} sx={{ mb: 4 }}>
         <Typography variant="body1">
-          Check-in: {data.checkIn?.toLocaleDateString()}
+          Check-in: {data.checkIn?.format('MM/DD/YYYY')}
         </Typography>
         <Typography variant="body1">
-          Check-out: {data.checkOut?.toLocaleDateString()}
+          Check-out: {data.checkOut?.format('MM/DD/YYYY')}
         </Typography>
         <Typography variant="body1">
           Room: {data.selectedRoom?.roomNumber} ({data.selectedRoom?.type})
@@ -52,6 +52,9 @@ const Confirmation = ({ data, onBack }: StepComponentProps) => {
             // Implement payment integration
             await fetch('/api/reservations/create', {
               method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
               body: JSON.stringify(data)
             });
           }}

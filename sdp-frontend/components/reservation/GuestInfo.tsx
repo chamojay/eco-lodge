@@ -12,6 +12,18 @@ import {
 } from '@mui/material';
 import { StepComponentProps } from './utils/types';
 
+export interface Customer {
+  title: "Mr" | "Mrs" | "Ms";
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  adults: number;
+  children: number;
+  arrivalTime: string;
+  specialRequests: string;
+}
+
 const GuestInfo = ({ data, setData, onNext, onBack }: StepComponentProps) => {
   const [errors, setErrors] = useState<Record<string, string>>({});
 

@@ -1,4 +1,5 @@
 'use client';
+import { Dayjs } from 'dayjs';
 import { useState } from 'react';
 import { 
   Box, 
@@ -14,7 +15,7 @@ import { StepComponentProps } from './utils/types';
 const CheckAvailability = ({ data, setData, onNext }: StepComponentProps) => {
   const [error, setError] = useState('');
 
-  const handleDateChange = (name: 'checkIn' | 'checkOut') => (date: Date | null) => {
+  const handleDateChange = (name: 'checkIn' | 'checkOut') => (date: Dayjs | null) => {
     setData(prev => ({
       ...prev,
       [name]: date
@@ -26,26 +27,13 @@ const CheckAvailability = ({ data, setData, onNext }: StepComponentProps) => {
       setError('Please select both check-in and check-out dates');
       return;
     }
-    if (data.checkIn >= data.checkOut) {
+    if (data.checkIn.isAfter(data.checkOut)) {
       setError('Check-out date must be after check-in date');
       return;
     }
     
-    try {
-      const response = await fetch('/api/reservations/check-availability', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          checkIn: data.checkIn.toISOString(),
-          checkOut: data.checkOut.toISOString()
-        })
-      });
-      
-      if (!response.ok) throw new Error('Availability check failed');
-      onNext();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to check availability');
-    }
+    // Mock API call
+    onNext();
   };
 
   return (

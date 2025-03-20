@@ -23,3 +23,10 @@ export type ReservationData = {
     specialRequests: string;
   };
 };
+
+export interface StepComponentProps {
+  data: ReservationData;
+  setData: React.Dispatch<React.SetStateAction<ReservationData>>;
+  onNext: () => void;
+  onBack?: () => void;
+}
