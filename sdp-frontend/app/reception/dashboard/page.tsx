@@ -20,25 +20,21 @@ import {
   Dialog,
   DialogTitle,
   DialogContent,
+  DialogActions,
   TextField,
 } from '@mui/material';
 import {
   Menu,
   ChevronLeft,
-  Event,
   MeetingRoom,
   ExitToApp,
   PersonAdd,
   CalendarToday,
   Assignment,
   Logout,
-  Add
 } from '@mui/icons-material';
-// Commented out DateCalendar import due to error
-// import { DateCalendar } from '@mui/x-date-pickers/DateCalendar';
 import { styled } from '@mui/material/styles';
 
-// Define types for the state data
 interface Room {
   number: number;
   reserved: boolean;
@@ -50,8 +46,8 @@ interface Room {
 const drawerWidth = 240;
 const collapsedDrawerWidth = 56;
 
-const Main = styled('main', { shouldForwardProp: (prop) => prop !== 'open' })(
-  ({ theme, open }: { theme: any, open: boolean }) => ({
+const Main = styled('main', { shouldForwardProp: (prop) => prop !== 'open' })<{ open: boolean }>(
+  ({ theme, open }) => ({
     flexGrow: 1,
     padding: theme.spacing(3),
     transition: theme.transitions.create('margin', {
@@ -60,6 +56,8 @@ const Main = styled('main', { shouldForwardProp: (prop) => prop !== 'open' })(
     }),
     marginLeft: `-${drawerWidth}px`,
     marginTop: theme.spacing(8),
+    backgroundColor: '#ffffff',
+    minHeight: 'calc(100vh - 64px)', // Full height minus app bar
     ...(open && {
       transition: theme.transitions.create('margin', {
         easing: theme.transitions.easing.easeOut,
@@ -85,9 +83,7 @@ const ReceptionDashboard: React.FC = () => {
     { number: 102, reserved: true, customer: 'John Doe', checkIn: '2023-08-15', checkOut: '2023-08-20' },
   ]);
 
-  const handleDrawerToggle = () => {
-    setOpen(!open);
-  };
+  const handleDrawerToggle = () => setOpen(!open);
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -104,23 +100,19 @@ const ReceptionDashboard: React.FC = () => {
 
   const handleRoomClick = (room: Room) => {
     setSelectedRoom(room);
-    if (room.reserved) {
-      setRoomDetailsOpen(true);
-    } else {
-      setCheckInOpen(true);
-    }
+    room.reserved ? setRoomDetailsOpen(true) : setCheckInOpen(true);
   };
 
-  const handleCheckIn = () => {
-    setCheckInOpen(false);
-  };
+  const handleCheckIn = () => setCheckInOpen(false);
 
   const renderContent = () => {
     switch(selectedMenu) {
       case 'rooms':
         return (
           <Box sx={{ p: 3 }}>
-            <Typography variant="h4" gutterBottom>Room Status</Typography>
+            <Typography variant="h4" gutterBottom color="primary">
+              Room Status
+            </Typography>
             <Grid container spacing={3}>
               {rooms.map((room) => (
                 <Grid item key={room.number} xs={4}>
@@ -151,14 +143,10 @@ const ReceptionDashboard: React.FC = () => {
       case 'calendar':
         return (
           <Box sx={{ p: 3 }}>
-            <Typography variant="h4" gutterBottom>Reservation Calendar</Typography>
+            <Typography variant="h4" gutterBottom color="primary">
+              Reservation Calendar
+            </Typography>
             <Paper sx={{ p: 2 }}>
-              {/* Commented out DateCalendar usage due to import error */}
-              {/* <DateCalendar
-                sx={{ width: '100%' }}
-                showDaysOutsideCurrentMonth
-                fixedWeekNumber={6}
-              /> */}
               <Typography variant="body1">
                 Calendar component is temporarily disabled.
               </Typography>
@@ -168,27 +156,35 @@ const ReceptionDashboard: React.FC = () => {
       default:
         return (
           <Box sx={{ p: 3 }}>
-            <Typography variant="h4" gutterBottom>Reception Dashboard</Typography>
+            <Typography variant="h4" gutterBottom color="primary">
+              Reception Dashboard
+            </Typography>
           </Box>
         );
     }
   };
 
   return (
-    <Box sx={{ display: 'flex', backgroundColor: 'white' }}>
+    <Box sx={{ 
+      display: 'flex', 
+      minHeight: '100vh',
+      backgroundColor: '#ffffff' // Ensures full background coverage
+    }}>
       <CssBaseline />
-      <AppBar position="fixed" sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }}>
+      <AppBar position="fixed" sx={{ 
+        zIndex: (theme) => theme.zIndex.drawer + 1,
+        backgroundColor: '#1a472a'
+      }}>
         <Toolbar>
           <IconButton
             color="inherit"
-            aria-label="open drawer"
             onClick={handleDrawerToggle}
             edge="start"
             sx={{ mr: 2 }}
           >
             {open ? <ChevronLeft /> : <Menu />}
           </IconButton>
-          <Typography variant="h6" noWrap component="div">
+          <Typography variant="h6" noWrap component="div" sx={{ color: 'white' }}>
             Reception Dashboard
           </Typography>
         </Toolbar>
@@ -199,37 +195,29 @@ const ReceptionDashboard: React.FC = () => {
         sx={{
           width: open ? drawerWidth : collapsedDrawerWidth,
           flexShrink: 0,
-          whiteSpace: 'nowrap',
           '& .MuiDrawer-paper': {
             width: open ? drawerWidth : collapsedDrawerWidth,
-            overflowX: 'hidden',
-            display: 'flex',
-            flexDirection: 'column',
-            transition: (theme) =>
-              theme.transitions.create('width', {
-                easing: theme.transitions.easing.sharp,
-                duration: open 
-                  ? theme.transitions.duration.enteringScreen
-                  : theme.transitions.duration.leavingScreen,
-              }),
+            backgroundColor: '#1a472a',
+            color: 'white',
             top: '64px',
             height: 'calc(100% - 64px)',
           },
         }}
       >
-        <Toolbar sx={{ 
+        <Box sx={{ 
           display: 'flex', 
           flexDirection: 'column', 
+          alignItems: 'center', 
           p: open ? 2 : 1,
-          minHeight: '64px !important'
+          transition: '0.3s'
         }}>
           <Avatar 
             src="/logo.png"
             sx={{ 
               width: open ? 56 : 40,
               height: open ? 56 : 40,
-              transition: '0.3s',
-              mb: open ? 1 : 0
+              mb: 1,
+              backgroundColor: 'white'
             }}
           />
           <Typography 
@@ -237,74 +225,97 @@ const ReceptionDashboard: React.FC = () => {
             sx={{ 
               opacity: open ? 1 : 0,
               transition: '0.3s',
-              fontSize: open ? '1.25rem' : '0rem'
+              color: 'white'
             }}
           >
             Hotel Algama
           </Typography>
-        </Toolbar>
+        </Box>
         <List sx={{ flexGrow: 1 }}>
           {menuItems.map((item) => (
             <ListItem key={item.id} disablePadding>
               <ListItemButton
-                sx={{
-                  justifyContent: open ? 'initial' : 'center',
-                  px: 2.5,
-                  minHeight: 48,
-                }}
                 selected={selectedMenu === item.id}
                 onClick={() => setSelectedMenu(item.id)}
+                sx={{
+                  '&.Mui-selected': {
+                    backgroundColor: '#2e7d32',
+                    '&:hover': { backgroundColor: '#2e7d32' }
+                  }
+                }}
               >
-                <ListItemIcon
-                  sx={{
-                    minWidth: 0,
-                    mr: open ? 3 : 'auto',
-                    justifyContent: 'center',
-                  }}
-                >
-                  {item.icon}
-                </ListItemIcon>
-                <ListItemText 
-                  primary={item.label} 
-                  sx={{ 
-                    opacity: open ? 1 : 0,
-                    transition: 'opacity 0.3s' 
-                  }} 
-                />
+                <ListItemIcon sx={{ color: 'white' }}>{item.icon}</ListItemIcon>
+                {open && <ListItemText primary={item.label} />}
               </ListItemButton>
             </ListItem>
           ))}
         </List>
-        <Box sx={{ 
-          p: open ? 2 : 1,
-          transition: '0.3s' 
-        }}>
+        <Box sx={{ p: 2 }}>
           <Button
             fullWidth
             variant="contained"
-            color="error"
-            sx={{
-              justifyContent: open ? 'flex-start' : 'center',
-              px: 2.5,
-              minHeight: 48,
-            }}
             onClick={handleLogout}
+            sx={{ 
+              backgroundColor: '#d32f2f',
+              '&:hover': { backgroundColor: '#9a0007' }
+            }}
           >
-            <Logout sx={{ mr: open ? 2 : 0 }} />
-            <span style={{ 
-              opacity: open ? 1 : 0, 
-              transition: 'opacity 0.3s',
-              whiteSpace: 'nowrap',
-            }}>
-              Log out
-            </span>
+            <Logout sx={{ mr: open ? 1 : 0 }} />
+            {open && 'Logout'}
           </Button>
         </Box>
       </Drawer>
-       <Main open={open}>
-              <Toolbar />
-              {renderContent()}
-            </Main>
+      <Main open={open}>
+        <Toolbar /> {/* Creates spacing under app bar */}
+        {renderContent()}
+      </Main>
+
+      <Dialog open={checkInOpen} onClose={() => setCheckInOpen(false)}>
+        <DialogTitle>Check-In Guest</DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            margin="dense"
+            label="Guest Name"
+            fullWidth
+            sx={{ my: 2 }}
+          />
+          <TextField
+            margin="dense"
+            label="Check-In Date"
+            type="date"
+            fullWidth
+            InputLabelProps={{ shrink: true }}
+            sx={{ my: 2 }}
+          />
+          <TextField
+            margin="dense"
+            label="Check-Out Date"
+            type="date"
+            fullWidth
+            InputLabelProps={{ shrink: true }}
+            sx={{ my: 2 }}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button 
+            onClick={() => setCheckInOpen(false)}
+            color="error"
+          >
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleCheckIn}
+            sx={{
+              backgroundColor: '#1a472a',
+              color: 'white',
+              '&:hover': { backgroundColor: '#2e7d32' }
+            }}
+          >
+            Check-In
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };
