@@ -1,7 +1,4 @@
 {
   "/not-found": "app/not-found.js",
-  "/page": "app/page.js",
-  "/admin/dashboard/page": "app/admin/dashboard/page.js",
-  "/web/rooms/page": "app/web/rooms/page.js",
-  "/reservation/page": "app/reservation/page.js"
+  "/admin/dashboard/page": "app/admin/dashboard/page.js"
 }

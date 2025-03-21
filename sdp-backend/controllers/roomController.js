@@ -1,4 +1,5 @@
 // controllers/roomController.js
+const db = require('../config/db');
 const mysql = require('mysql2/promise');
 
 // MySQL connection configuration

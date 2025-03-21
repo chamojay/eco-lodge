@@ -1,20 +1,25 @@
-const mysql = require('mysql2');
+// db.js - Reusable DB Connection Pool
+const mysql = require('mysql2/promise');
 
-// Create a connection to the database
-const db = mysql.createConnection({
+const dbConfig = {
   host: 'localhost',
   user: 'root',
   password: 'root',
   database: 'ecolodge',
-});
+  waitForConnections: true,  // Wait for a connection if all are in use
+  connectionLimit: 10,      // Max number of connections in the pool
+  queueLimit: 0             // Unlimited queueing of requests
+};
 
-// Connect to MySQL
-db.connect((err) => {
-  if (err) {
-    console.error('Error connecting to the database:', err.stack);
-    return;
-  }
-  console.log('Connected to the MySQL database');
-});
+const pool = mysql.createPool(dbConfig);
 
-module.exports = db;
+pool.getConnection()
+  .then(connection => {
+    console.log('Database connection pool created successfully');
+    connection.release();
+  })
+  .catch(err => {
+    console.error('Error creating database connection pool:', err);
+  });
+
+module.exports = pool;

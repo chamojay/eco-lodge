@@ -21,7 +21,9 @@ const RoomSelection = ({ data, setData, onNext, onBack }: StepComponentProps) =>
   useEffect(() => {
     // Fetch room availability
     const fetchAvailability = async () => {
-      const response = await fetch(`/api/reservations/availability?roomType=${roomType}`);
+      const response = await fetch(
+        `/api/reservations/availability?roomType=${roomType}&checkIn=${data.checkIn?.format()}&checkOut=${data.checkOut?.format()}`
+      );
       const dates = await response.json();
       setAvailability(dates);
     };
@@ -45,8 +47,9 @@ const RoomSelection = ({ data, setData, onNext, onBack }: StepComponentProps) =>
               label="Room Type"
             >
               <MenuItem value="Standard">Standard</MenuItem>
-              <MenuItem value="Deluxe">Deluxe</MenuItem>
+              <MenuItem value="Delux">Delux</MenuItem>
               <MenuItem value="Suite">Suite</MenuItem>
+              <MenuItem value="Cabana">Cabana</MenuItem>
             </Select>
           </FormControl>
 
