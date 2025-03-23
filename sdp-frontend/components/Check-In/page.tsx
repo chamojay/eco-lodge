@@ -10,13 +10,19 @@ import {
   TextField,
   Grid,
   Paper,
-  CircularProgress
+  CircularProgress,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow
 } from '@mui/material';
 import { reservationService } from '@/app/services/reservationService';
 import { Room } from '@/types/reservationtypes';
 
-// Updated steps array to include 'Reservation Details'
-const steps = ['Select Dates', 'Choose Room', 'Guest Details', 'Reservation Details'];
+// Updated steps array to include 'Review Invoice' as the 5th step
+const steps = ['Select Dates', 'Choose Room', 'Guest Details', 'Reservation Details', 'Review Invoice'];
 
 const CheckInComponent = () => {
   const [activeStep, setActiveStep] = useState(0);
@@ -33,9 +39,8 @@ const CheckInComponent = () => {
     Country: '',
     Nic_Passport: ''
   });
-  // New state for reservation data
   const [reservationData, setReservationData] = useState({
-    PackageType: 'Standard',
+    PackageType: 'RoomOnly', // Updated default to match options
     Adults: 1,
     Children: 0,
     SpecialRequests: '',
@@ -55,23 +60,53 @@ const CheckInComponent = () => {
     setLoading(false);
   };
 
+  // Function to calculate the total amount including package adjustment and taxes
+  const calculateTotalAmount = () => {
+    if (!selectedRoom) return null;
+
+    const checkInDate = new Date(checkIn);
+    const checkOutDate = new Date(checkOut);
+    const numberOfNights = Math.ceil((checkOutDate.getTime() - checkInDate.getTime()) / (1000 * 3600 * 24));
+    const baseRoomPrice = selectedRoom.Price * numberOfNights;
+
+    // Adjust price based on package type
+    let packageMultiplier = 1;
+    if (reservationData.PackageType === 'HalfBoard') {
+      packageMultiplier = 1.3;
+    } else if (reservationData.PackageType === 'FullBoard') {
+      packageMultiplier = 1.5;
+    }
+    const adjustedRoomPrice = baseRoomPrice * packageMultiplier;
+
+    // Calculate taxes
+    const serviceCharge = adjustedRoomPrice * 0.10; // 10% service charge
+    const vat = adjustedRoomPrice * 0.18; // 18% VAT
+    const totalPrice = adjustedRoomPrice + serviceCharge + vat;
+
+    return {
+      baseRoomPrice,
+      adjustedRoomPrice,
+      serviceCharge,
+      vat,
+      totalPrice,
+      numberOfNights
+    };
+  };
+
   const handleSubmitReservation = async () => {
     setLoading(true);
     try {
       if (!selectedRoom) throw new Error('No room selected');
-      // Calculate the number of nights and total amount
-      const checkInDate = new Date(checkIn);
-      const checkOutDate = new Date(checkOut);
-      const numberOfNights = Math.ceil((checkOutDate.getTime() - checkInDate.getTime()) / (1000 * 3600 * 24));
-      const totalAmount = selectedRoom.Price * numberOfNights;
+      const invoice = calculateTotalAmount();
+      if (!invoice) throw new Error('Unable to calculate total amount');
 
       await reservationService.createReservation(
-        selectedRoom.RoomNumber, // Assuming RoomNumber is a string
+        selectedRoom.RoomNumber,
         customerData,
         {
           CheckInDate: checkIn,
           CheckOutDate: checkOut,
-          TotalAmount: totalAmount, // Updated to calculated value
+          TotalAmount: invoice.totalPrice, // Use calculated total price
           PackageType: reservationData.PackageType,
           Adults: reservationData.Adults,
           Children: reservationData.Children,
@@ -80,12 +115,14 @@ const CheckInComponent = () => {
           DepartureTime: reservationData.DepartureTime
         }
       );
-      setActiveStep(4); // Success state (after 4 steps)
+      setActiveStep(5); // Move to success state after submission
     } catch (error) {
       console.error('Error creating reservation:', error);
     }
     setLoading(false);
   };
+
+  const invoice = activeStep === 4 ? calculateTotalAmount() : null;
 
   return (
     <Box sx={{ maxWidth: 800, margin: 'auto', p: 3 }}>
@@ -149,10 +186,7 @@ const CheckInComponent = () => {
             ))}
           </Grid>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 2 }}>
-            <Button
-              variant="outlined"
-              onClick={() => setActiveStep(0)}
-            >
+            <Button variant="outlined" onClick={() => setActiveStep(0)}>
               Back
             </Button>
             <Button
@@ -174,39 +208,36 @@ const CheckInComponent = () => {
           <TextField
             label="First Name"
             value={customerData.FirstName}
-            onChange={(e) => setCustomerData({...customerData, FirstName: e.target.value})}
+            onChange={(e) => setCustomerData({ ...customerData, FirstName: e.target.value })}
           />
           <TextField
             label="Last Name"
             value={customerData.LastName}
-            onChange={(e) => setCustomerData({...customerData, LastName: e.target.value})}
+            onChange={(e) => setCustomerData({ ...customerData, LastName: e.target.value })}
           />
           <TextField
             label="Email"
             type="email"
             value={customerData.Email}
-            onChange={(e) => setCustomerData({...customerData, Email: e.target.value})}
+            onChange={(e) => setCustomerData({ ...customerData, Email: e.target.value })}
           />
           <TextField
             label="Phone"
             value={customerData.Phone}
-            onChange={(e) => setCustomerData({...customerData, Phone: e.target.value})}
+            onChange={(e) => setCustomerData({ ...customerData, Phone: e.target.value })}
           />
           <TextField
             label="Country"
             value={customerData.Country}
-            onChange={(e) => setCustomerData({...customerData, Country: e.target.value})}
+            onChange={(e) => setCustomerData({ ...customerData, Country: e.target.value })}
           />
           <TextField
             label="NIC/Passport"
             value={customerData.Nic_Passport}
-            onChange={(e) => setCustomerData({...customerData, Nic_Passport: e.target.value})}
+            onChange={(e) => setCustomerData({ ...customerData, Nic_Passport: e.target.value })}
           />
           <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 2 }}>
-            <Button
-              variant="outlined"
-              onClick={() => setActiveStep(1)}
-            >
+            <Button variant="outlined" onClick={() => setActiveStep(1)}>
               Back
             </Button>
             <Button
@@ -228,10 +259,8 @@ const CheckInComponent = () => {
             select
             label="Package Type"
             value={reservationData.PackageType}
-            onChange={(e) => setReservationData({...reservationData, PackageType: e.target.value})}
-            SelectProps={{
-              native: true,
-            }}
+            onChange={(e) => setReservationData({ ...reservationData, PackageType: e.target.value })}
+            SelectProps={{ native: true }}
           >
             <option value="RoomOnly">Room Only</option>
             <option value="HalfBoard">Half Board</option>
@@ -242,7 +271,7 @@ const CheckInComponent = () => {
             type="number"
             value={reservationData.Adults}
             onChange={(e) => setReservationData({
-              ...reservationData, 
+              ...reservationData,
               Adults: e.target.value ? parseInt(e.target.value) : 1
             })}
             inputProps={{ min: 1 }}
@@ -252,7 +281,7 @@ const CheckInComponent = () => {
             type="number"
             value={reservationData.Children}
             onChange={(e) => setReservationData({
-              ...reservationData, 
+              ...reservationData,
               Children: e.target.value ? parseInt(e.target.value) : 0
             })}
             inputProps={{ min: 0 }}
@@ -262,27 +291,75 @@ const CheckInComponent = () => {
             multiline
             rows={4}
             value={reservationData.SpecialRequests}
-            onChange={(e) => setReservationData({...reservationData, SpecialRequests: e.target.value})}
+            onChange={(e) => setReservationData({ ...reservationData, SpecialRequests: e.target.value })}
           />
           <TextField
             label="Arrival Time"
             type="time"
             value={reservationData.ArrivalTime}
-            onChange={(e) => setReservationData({...reservationData, ArrivalTime: e.target.value})}
+            onChange={(e) => setReservationData({ ...reservationData, ArrivalTime: e.target.value })}
             InputLabelProps={{ shrink: true }}
           />
           <TextField
             label="Departure Time"
             type="time"
             value={reservationData.DepartureTime}
-            onChange={(e) => setReservationData({...reservationData, DepartureTime: e.target.value})}
+            onChange={(e) => setReservationData({ ...reservationData, DepartureTime: e.target.value })}
             InputLabelProps={{ shrink: true }}
           />
           <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 2 }}>
+            <Button variant="outlined" onClick={() => setActiveStep(2)}>
+              Back
+            </Button>
             <Button
-              variant="outlined"
-              onClick={() => setActiveStep(2)}
+              variant="contained"
+              onClick={() => setActiveStep(4)}
+              sx={{ backgroundColor: '#1a472a', color: 'white' }}
             >
+              Next
+            </Button>
+          </Box>
+        </Box>
+      )}
+
+      {/* Step 4: Review Invoice */}
+      {activeStep === 4 && invoice && (
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+          <Typography variant="h6">Invoice Summary</Typography>
+          <TableContainer component={Paper}>
+            <Table>
+              <TableHead>
+                <TableRow>
+                  <TableCell>Description</TableCell>
+                  <TableCell align="right">Amount</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                <TableRow>
+                  <TableCell>Base Room Price (${selectedRoom?.Price}/night x {invoice.numberOfNights} nights)</TableCell>
+                  <TableCell align="right">${invoice.baseRoomPrice.toFixed(2)}</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell>Package Adjustment ({reservationData.PackageType})</TableCell>
+                  <TableCell align="right">${(invoice.adjustedRoomPrice - invoice.baseRoomPrice).toFixed(2)}</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell>Service Charge (10%)</TableCell>
+                  <TableCell align="right">${invoice.serviceCharge.toFixed(2)}</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell>VAT (18%)</TableCell>
+                  <TableCell align="right">${invoice.vat.toFixed(2)}</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell><strong>Total Price</strong></TableCell>
+                  <TableCell align="right"><strong>${invoice.totalPrice.toFixed(2)}</strong></TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </TableContainer>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 2 }}>
+            <Button variant="outlined" onClick={() => setActiveStep(3)}>
               Back
             </Button>
             <Button
@@ -297,8 +374,8 @@ const CheckInComponent = () => {
         </Box>
       )}
 
-      {/* Step 4: Success */}
-      {activeStep === 4 && (
+      {/* Step 5: Success */}
+      {activeStep === 5 && (
         <Box sx={{ textAlign: 'center', p: 4 }}>
           <Typography variant="h5" gutterBottom sx={{ color: '#1a472a' }}>
             Reservation Successful!
