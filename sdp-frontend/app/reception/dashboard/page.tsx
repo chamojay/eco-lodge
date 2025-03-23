@@ -1,5 +1,7 @@
 'use client';
 import React, { useState } from 'react';
+import CheckInComponent from '@/components/Check-In/page';
+import CheckOutComponent from '@/components/Check-out/page';
 import { 
   Box, 
   Drawer, 
@@ -140,6 +142,12 @@ const ReceptionDashboard: React.FC = () => {
             </Grid>
           </Box>
         );
+
+        case 'checkin':
+          return <CheckInComponent />;
+        case 'checkout':
+          return <CheckOutComponent />;
+          
       case 'calendar':
         return (
           <Box sx={{ p: 3 }}>
