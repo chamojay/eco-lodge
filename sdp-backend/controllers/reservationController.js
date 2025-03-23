@@ -1,99 +1,138 @@
-const db = require('../config/db');
+const pool = require('../config/db');
 
-// Function to get RoomID from RoomNumber
-async function getRoomIdByRoomNumber(roomNumber) {
-  const [rows] = await db.execute('SELECT RoomID FROM Rooms WHERE RoomNumber = ?', [roomNumber]);
-  if (rows.length > 0) {
-    return rows[0].RoomID;
-  }
-  return null; // Return null if no room found
-}
-
-// Check room availability
-exports.checkRoomAvailability = async (req, res) => {
-  try {
-    const { RoomID, CheckInDate, CheckOutDate, RoomNumber } = req.body;
-
-    // If RoomNumber is provided instead of RoomID, fetch RoomID
-    const actualRoomID = RoomID || await getRoomIdByRoomNumber(RoomNumber);
-    
-    if (!actualRoomID) {
-      return res.status(400).json({ error: 'Room not found with the provided RoomNumber.' });
-    }
-
-    const [rows] = await db.execute(
-      `SELECT * FROM room_status_history 
-      WHERE RoomID = ? AND Status = 'Booked' 
-      AND ((StartDate <= ? AND EndDate IS NULL) OR (StartDate BETWEEN ? AND ?))`,
-      [actualRoomID, CheckInDate, CheckInDate, CheckOutDate]
-    );
-
-    res.json({ available: rows.length === 0 });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-};
-
-// Create reservation (check-in)
-exports.createReservation = async (req, res) => {
+const ReservationController = {
+  // ✅ Check room availability
+  checkAvailability: async (req, res) => {
     try {
-      const { CustomerID, RoomID, RoomNumber, CheckInDate, CheckOutDate, PackageType, Adults, Children, SpecialRequests, ArrivalTime } = req.body;
-  
-      // If RoomNumber is provided instead of RoomID, fetch RoomID
-      const actualRoomID = RoomID || await getRoomIdByRoomNumber(RoomNumber);
-  
-      if (!actualRoomID) {
-        return res.status(400).json({ error: 'Room not found with the provided RoomNumber.' });
-      }
-  
-      // Combine CheckInDate and ArrivalTime to form the StartDate
-      const startDate = `${CheckInDate} ${ArrivalTime}`;
-  
-      const [result] = await db.execute(
-        `INSERT INTO reservations (CustomerID, RoomID, CheckInDate, CheckOutDate, PackageType, Adults, Children, SpecialRequests, ArrivalTime, Status) 
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'Confirmed')`,
-        [CustomerID, actualRoomID, CheckInDate, CheckOutDate, PackageType, Adults, Children, SpecialRequests, ArrivalTime]
+      const { checkIn, checkOut } = req.body;
+      
+      const [rooms] = await pool.query(
+        `SELECT r.RoomNumber, r.Type, r.Price 
+         FROM rooms r
+         WHERE r.RoomID NOT IN (
+           SELECT RoomID 
+           FROM reservations 
+           WHERE Room_Status = 'Confirmed' 
+           AND (
+             (CheckInDate <= ? AND CheckOutDate >= ?) OR
+             (CheckInDate <= ? AND CheckOutDate IS NULL)
+           )
+         )`,
+        [checkOut, checkIn, checkIn]
       );
-  
-      // Mark room as booked using CheckInDate and ArrivalTime
-      await db.execute(
-        `INSERT INTO room_status_history (RoomID, Status, StartDate) 
-        VALUES (?, 'Booked', ?)`,
-        [actualRoomID, startDate]  // Use the combined date-time for StartDate
-      );
-  
-      res.status(201).json({ message: 'Reservation confirmed', ReservationID: result.insertId });
-    } catch (err) {
-      res.status(500).json({ error: err.message });
+
+      res.json(rooms);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
     }
-  };
+  },
 
-// Complete reservation (checkout)
-exports.completeReservation = async (req, res) => {
-  try {
-    const { ReservationID, RoomID } = req.body;
+  // ✅ Create a new reservation
+  createReservation: async (req, res) => {
+    const connection = await pool.getConnection();
+    try {
+      await connection.beginTransaction();
 
-    // Update reservation status
-    await db.execute(
-      `UPDATE reservations SET Status = 'Completed' WHERE ReservationID = ?`,
-      [ReservationID]
-    );
+      const { roomNumber, customerData, reservationData } = req.body;
 
-    // Mark room as available
-    await db.execute(
-      `UPDATE room_status_history 
-      SET EndDate = NOW() 
-      WHERE RoomID = ? AND Status = 'Booked' AND EndDate IS NULL`,
-      [RoomID]
-    );
-    await db.execute(
-      `INSERT INTO room_status_history (RoomID, Status, StartDate) 
-      VALUES (?, 'Available', NOW())`,
-      [RoomID]
-    );
+      // 1️⃣ Insert customer details
+      const [customerResult] = await connection.query(
+        `INSERT INTO customers (FirstName, LastName, Email, Phone, Country, Nic_Passport) 
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        [
+          customerData.FirstName,
+          customerData.LastName,
+          customerData.Email,
+          customerData.Phone,
+          customerData.Country,
+          customerData.Nic_Passport
+        ]
+      );
 
-    res.json({ message: 'Checkout successful' });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+      // 2️⃣ Get Room ID from Room Number
+      const [room] = await connection.query(
+        'SELECT RoomID FROM rooms WHERE RoomNumber = ?',
+        [roomNumber]
+      );
+
+      if (room.length === 0) {
+        throw new Error('Room not found');
+      }
+
+      // 3️⃣ Insert reservation with Room_Status
+      const [reservationResult] = await connection.query(
+        `INSERT INTO reservations (CustomerID, RoomID, CheckInDate, CheckOutDate, TotalAmount, PackageType, Adults, Children, SpecialRequests, ArrivalTime, DepartureTime, Room_Status)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )`,
+        [
+          customerResult.insertId,
+          room[0].RoomID,
+          reservationData.CheckInDate,
+          reservationData.CheckOutDate,
+          reservationData.TotalAmount,
+          reservationData.PackageType,
+          reservationData.Adults,
+          reservationData.Children,
+          reservationData.SpecialRequests,
+          reservationData.ArrivalTime,
+          reservationData.DepartureTime,
+          'Confirmed'
+        ]
+      );
+
+      await connection.commit();
+      
+      res.status(201).json({
+        id: reservationResult.insertId,
+        total: reservationData.TotalAmount
+      });
+    } catch (error) {
+      await connection.rollback();
+      res.status(500).json({ error: error.message });
+    } finally {
+      connection.release();
+    }
+  },
+
+  // ✅ Fetch active reservations
+  getActiveReservations: async (req, res) => {
+    try {
+      const [reservations] = await pool.query(
+        `SELECT r.ReservationID, r.CheckOutDate, 
+                c.FirstName, c.LastName,
+                rm.RoomNumber
+         FROM reservations r
+         JOIN customers c ON r.CustomerID = c.CustomerID
+         JOIN rooms rm ON r.RoomID = rm.RoomID
+         WHERE r.Room_Status = 'Confirmed'`
+      );
+      res.json(reservations);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  },
+
+  // ✅ Complete checkout and free room
+  completeCheckout: async (req, res) => {
+    const connection = await pool.getConnection();
+    try {
+      await connection.beginTransaction();
+      const { id } = req.params;
+
+      // 1️⃣ Update reservation status
+      await connection.query(
+        'UPDATE reservations SET Room_Status = "Completed" WHERE ReservationID = ?',
+        [id]
+      );
+
+      await connection.commit();
+      res.json({ success: true });
+    } catch (error) {
+      await connection.rollback();
+      res.status(500).json({ error: error.message });
+    } finally {
+      connection.release();
+    }
   }
 };
+
+module.exports = ReservationController;
