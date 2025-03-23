@@ -180,7 +180,7 @@ const CheckInComponent = () => {
                 >
                   <Typography variant="subtitle1">Room {room.RoomNumber}</Typography>
                   <Typography>Type: {room.Type}</Typography>
-                  <Typography>Price: ${room.Price}/night</Typography>
+                  <Typography>Price: LKR {room.Price}/night</Typography>
                 </Paper>
               </Grid>
             ))}
@@ -336,24 +336,24 @@ const CheckInComponent = () => {
               </TableHead>
               <TableBody>
                 <TableRow>
-                  <TableCell>Base Room Price (${selectedRoom?.Price}/night x {invoice.numberOfNights} nights)</TableCell>
-                  <TableCell align="right">${invoice.baseRoomPrice.toFixed(2)}</TableCell>
+                  <TableCell>Base Room Price (LKR {selectedRoom?.Price}/night x {invoice.numberOfNights} nights)</TableCell>
+                  <TableCell align="right">LKR {invoice.baseRoomPrice.toFixed(2)}</TableCell>
                 </TableRow>
                 <TableRow>
                   <TableCell>Package Adjustment ({reservationData.PackageType})</TableCell>
-                  <TableCell align="right">${(invoice.adjustedRoomPrice - invoice.baseRoomPrice).toFixed(2)}</TableCell>
+                  <TableCell align="right">LKR {(invoice.adjustedRoomPrice - invoice.baseRoomPrice).toFixed(2)}</TableCell>
                 </TableRow>
                 <TableRow>
                   <TableCell>Service Charge (10%)</TableCell>
-                  <TableCell align="right">${invoice.serviceCharge.toFixed(2)}</TableCell>
+                  <TableCell align="right">LKR {invoice.serviceCharge.toFixed(2)}</TableCell>
                 </TableRow>
                 <TableRow>
                   <TableCell>VAT (18%)</TableCell>
-                  <TableCell align="right">${invoice.vat.toFixed(2)}</TableCell>
+                  <TableCell align="right">LKR {invoice.vat.toFixed(2)}</TableCell>
                 </TableRow>
                 <TableRow>
                   <TableCell><strong>Total Price</strong></TableCell>
-                  <TableCell align="right"><strong>${invoice.totalPrice.toFixed(2)}</strong></TableCell>
+                  <TableCell align="right"><strong>LKR {invoice.totalPrice.toFixed(2)}</strong></TableCell>
                 </TableRow>
               </TableBody>
             </Table>
