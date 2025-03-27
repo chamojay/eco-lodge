@@ -228,7 +228,7 @@ const AdminDashboard: React.FC = () => {
                       <TableRow key={room.RoomID}>
                         <TableCell>{room.RoomNumber}</TableCell>
                         <TableCell>{room.Type}</TableCell>
-                        <TableCell>${room.Price}</TableCell>
+                        <TableCell>LKR {room.Price}</TableCell>
                         <TableCell>{room.Description}</TableCell>
                         <TableCell>
                           <IconButton onClick={() => handleEditRoom(room)} sx={{ color: '#1a472a' }} disabled={loading}>
