@@ -1,7 +1,9 @@
 export type RoomType = {
-    RoomID: string;
-    RoomNumber: string;
-    Type: 'Delux' | 'Suite' | 'Standard' | 'Cabana';
-    Price: number;
-    Description: string;
-  };
+  RoomID: string;
+  RoomNumber: string;
+  Type: string;
+  LocalPrice: number;
+  ForeignPrice: number;
+  MaxPeople: number;
+  Description: string;
+};
