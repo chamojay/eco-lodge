@@ -1,4 +1,3 @@
-// controllers/roomController.js
 const db = require('../config/db');
 const mysql = require('mysql2/promise');
 
@@ -14,10 +13,10 @@ const dbConfig = {
 const createRoom = async (req, res) => {
   const connection = await mysql.createConnection(dbConfig);
   try {
-    const { RoomNumber, Type, Price, Description } = req.body;
+    const { RoomNumber, Type, LocalPrice, ForeignPrice, MaxPeople, Description } = req.body;
 
-    if (!RoomNumber || !Type || !Price) {
-      return res.status(400).json({ message: 'Room number, type, and price are required' });
+    if (!RoomNumber || !Type || !LocalPrice || !ForeignPrice || !MaxPeople) {
+      return res.status(400).json({ message: 'Room number, type, local price, foreign price, and max people are required' });
     }
 
     // Check if room number exists
@@ -36,11 +35,11 @@ const createRoom = async (req, res) => {
     }
 
     const [result] = await connection.execute(
-      'INSERT INTO rooms (RoomNumber, Type, Price, Description) VALUES (?, ?, ?, ?)',
-      [RoomNumber, Type, Price, Description || '']
+      'INSERT INTO rooms (RoomNumber, Type, LocalPrice, ForeignPrice, MaxPeople, Description) VALUES (?, ?, ?, ?, ?, ?)',
+      [RoomNumber, Type, LocalPrice, ForeignPrice, MaxPeople, Description || '']
     );
 
-    const newRoom = { RoomID: result.insertId, RoomNumber, Type, Price, Description };
+    const newRoom = { RoomID: result.insertId, RoomNumber, Type, LocalPrice, ForeignPrice, MaxPeople, Description };
     res.status(201).json(newRoom);
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
@@ -98,7 +97,11 @@ const getRoomById = async (req, res) => {
 const updateRoom = async (req, res) => {
   const connection = await mysql.createConnection(dbConfig);
   try {
-    const { RoomNumber, Type, Price, Description } = req.body;
+    const { RoomNumber, Type, LocalPrice, ForeignPrice, MaxPeople, Description } = req.body;
+
+    if (!RoomNumber || !Type || !LocalPrice || !ForeignPrice || !MaxPeople) {
+      return res.status(400).json({ message: 'Room number, type, local price, foreign price, and max people are required' });
+    }
 
     if (Description) {
       const wordCount = Description.trim().split(/\s+/).length;
@@ -108,15 +111,15 @@ const updateRoom = async (req, res) => {
     }
 
     const [result] = await connection.execute(
-      'UPDATE rooms SET RoomNumber = ?, Type = ?, Price = ?, Description = ? WHERE RoomID = ?',
-      [RoomNumber, Type, Price, Description || '', req.params.id]
+      'UPDATE rooms SET RoomNumber = ?, Type = ?, LocalPrice = ?, ForeignPrice = ?, MaxPeople = ?, Description = ? WHERE RoomID = ?',
+      [RoomNumber, Type, LocalPrice, ForeignPrice, MaxPeople, Description || '', req.params.id]
     );
 
     if (result.affectedRows === 0) {
       return res.status(404).json({ message: 'Room not found' });
     }
 
-    const updatedRoom = { RoomID: req.params.id, RoomNumber, Type, Price, Description };
+    const updatedRoom = { RoomID: req.params.id, RoomNumber, Type, LocalPrice, ForeignPrice, MaxPeople, Description };
     res.status(200).json(updatedRoom);
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
