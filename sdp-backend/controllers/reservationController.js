@@ -7,7 +7,7 @@ const ReservationController = {
       const { checkIn, checkOut } = req.body;
       
       const [rooms] = await pool.query(
-        `SELECT r.RoomNumber, r.Type, r.Price 
+        `SELECT r.RoomNumber, r.Type, r.LocalPrice, r.ForeignPrice, r.MaxPeople 
          FROM rooms r
          WHERE r.RoomID NOT IN (
            SELECT RoomID 

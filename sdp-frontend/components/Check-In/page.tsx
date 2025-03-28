@@ -16,7 +16,9 @@ import {
   TableCell,
   TableContainer,
   TableHead,
-  TableRow
+  TableRow,
+  Checkbox,
+  FormControlLabel
 } from '@mui/material';
 import { reservationService } from '@/app/services/reservationService';
 import { Room } from '@/types/reservationtypes';
@@ -31,6 +33,7 @@ const CheckInComponent = () => {
   const [rooms, setRooms] = useState<Room[]>([]);
   const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
   const [loading, setLoading] = useState(false);
+  const [isSriLankan, setIsSriLankan] = useState(true); // Default to true
   const [customerData, setCustomerData] = useState({
     FirstName: '',
     LastName: '',
@@ -40,7 +43,7 @@ const CheckInComponent = () => {
     Nic_Passport: ''
   });
   const [reservationData, setReservationData] = useState({
-    PackageType: 'RoomOnly', // Updated default to match options
+    PackageType: 'RoomOnly',
     Adults: 1,
     Children: 0,
     SpecialRequests: '',
@@ -67,7 +70,8 @@ const CheckInComponent = () => {
     const checkInDate = new Date(checkIn);
     const checkOutDate = new Date(checkOut);
     const numberOfNights = Math.ceil((checkOutDate.getTime() - checkInDate.getTime()) / (1000 * 3600 * 24));
-    const baseRoomPrice = selectedRoom.Price * numberOfNights;
+    const pricePerNight = isSriLankan ? selectedRoom.LocalPrice : selectedRoom.ForeignPrice;
+    const baseRoomPrice = pricePerNight * numberOfNights;
 
     // Adjust price based on package type
     let packageMultiplier = 1;
@@ -89,7 +93,8 @@ const CheckInComponent = () => {
       serviceCharge,
       vat,
       totalPrice,
-      numberOfNights
+      numberOfNights,
+      currency: isSriLankan ? 'LKR' : 'USD'
     };
   };
 
@@ -106,7 +111,7 @@ const CheckInComponent = () => {
         {
           CheckInDate: checkIn,
           CheckOutDate: checkOut,
-          TotalAmount: invoice.totalPrice, // Use calculated total price
+          TotalAmount: invoice.totalPrice,
           PackageType: reservationData.PackageType,
           Adults: reservationData.Adults,
           Children: reservationData.Children,
@@ -137,21 +142,33 @@ const CheckInComponent = () => {
       {/* Step 0: Select Dates */}
       {activeStep === 0 && (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-          <Typography variant="h6">Select Check-in/Check-out Dates</Typography>
-          <TextField
+            <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#1a472a' }}>
+            Select Check-in/Check-out Dates
+            </Typography>
+            <TextField
             label="Check-in Date"
             type="date"
             InputLabelProps={{ shrink: true }}
             value={checkIn}
             onChange={(e) => setCheckIn(e.target.value)}
-          />
-          <TextField
+            sx={{ backgroundColor: '#f9f9f9', borderRadius: 1 }}
+            />
+            <TextField
             label="Check-out Date"
             type="date"
             InputLabelProps={{ shrink: true }}
             value={checkOut}
             onChange={(e) => setCheckOut(e.target.value)}
-          />
+            sx={{ backgroundColor: '#f9f9f9', borderRadius: 1 }}
+            />
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: '#1a472a' }}>
+              <Typography>Are you Sri Lankan?</Typography>
+              <Checkbox
+              checked={isSriLankan}
+              onChange={(e) => setIsSriLankan(e.target.checked)}
+              sx={{ color: '#1a472a' }}
+              />
+            </Box>
           <Button 
             variant="contained" 
             onClick={handleSearchRooms}
@@ -180,7 +197,9 @@ const CheckInComponent = () => {
                 >
                   <Typography variant="subtitle1">Room {room.RoomNumber}</Typography>
                   <Typography>Type: {room.Type}</Typography>
-                  <Typography>Price: LKR {room.Price}/night</Typography>
+                  <Typography>
+                    Price: {isSriLankan ? `LKR ${room.LocalPrice}` : `USD ${room.ForeignPrice}`}/night
+                  </Typography>
                 </Paper>
               </Grid>
             ))}
@@ -336,24 +355,26 @@ const CheckInComponent = () => {
               </TableHead>
               <TableBody>
                 <TableRow>
-                  <TableCell>Base Room Price (LKR {selectedRoom?.Price}/night x {invoice.numberOfNights} nights)</TableCell>
-                  <TableCell align="right">LKR {invoice.baseRoomPrice.toFixed(2)}</TableCell>
+                  <TableCell>
+                    Base Room Price ({invoice.currency} {isSriLankan ? selectedRoom?.LocalPrice : selectedRoom?.ForeignPrice}/night x {invoice.numberOfNights} nights)
+                  </TableCell>
+                  <TableCell align="right">{invoice.currency} {invoice.baseRoomPrice.toFixed(2)}</TableCell>
                 </TableRow>
                 <TableRow>
                   <TableCell>Package Adjustment ({reservationData.PackageType})</TableCell>
-                  <TableCell align="right">LKR {(invoice.adjustedRoomPrice - invoice.baseRoomPrice).toFixed(2)}</TableCell>
+                  <TableCell align="right">{invoice.currency} {(invoice.adjustedRoomPrice - invoice.baseRoomPrice).toFixed(2)}</TableCell>
                 </TableRow>
                 <TableRow>
                   <TableCell>Service Charge (10%)</TableCell>
-                  <TableCell align="right">LKR {invoice.serviceCharge.toFixed(2)}</TableCell>
+                  <TableCell align="right">{invoice.currency} {invoice.serviceCharge.toFixed(2)}</TableCell>
                 </TableRow>
                 <TableRow>
                   <TableCell>VAT (18%)</TableCell>
-                  <TableCell align="right">LKR {invoice.vat.toFixed(2)}</TableCell>
+                  <TableCell align="right">{invoice.currency} {invoice.vat.toFixed(2)}</TableCell>
                 </TableRow>
                 <TableRow>
                   <TableCell><strong>Total Price</strong></TableCell>
-                  <TableCell align="right"><strong>LKR {invoice.totalPrice.toFixed(2)}</strong></TableCell>
+                  <TableCell align="right"><strong>{invoice.currency} {invoice.totalPrice.toFixed(2)}</strong></TableCell>
                 </TableRow>
               </TableBody>
             </Table>

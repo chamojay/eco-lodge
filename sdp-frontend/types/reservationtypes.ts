@@ -1,8 +1,11 @@
 export interface Room {
-  RoomID: number;
-  RoomNumber: number;
+  RoomID: string;
+  RoomNumber: string;
   Type: string;
-  Price: number;
+  LocalPrice: number;
+  ForeignPrice: number;
+  MaxPeople: number;
+  Description: string;
 }
   
   export interface Reservation {
