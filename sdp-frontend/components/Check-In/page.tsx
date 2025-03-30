@@ -1,5 +1,5 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Box, 
   Stepper, 
@@ -18,7 +18,8 @@ import {
   TableHead,
   TableRow,
   Checkbox,
-  FormControlLabel
+  FormControlLabel,
+  Autocomplete
 } from '@mui/material';
 import { reservationService } from '@/app/services/reservationService';
 import { Room } from '@/types/reservationtypes';
@@ -50,6 +51,20 @@ const CheckInComponent = () => {
     ArrivalTime: '14:00',
     DepartureTime: '12:00'
   });
+
+  // list of countries 
+  const countries = [
+    'Afghanistan', 'Albania', 'Algeria', 'Australia', 'Brazil', 
+    'Canada', 'China', 'France', 'Germany', 'India', 
+    'Japan', 'Sri Lanka', 'United Kingdom', 'United States', 'Zimbabwe'
+  ];
+
+  // Country is set to "Sri Lanka" when isSriLankan is true
+  useEffect(() => {
+    if (isSriLankan) {
+      setCustomerData({ ...customerData, Country: 'Sri Lanka' });
+    }
+  }, [isSriLankan]);
 
   const handleSearchRooms = async () => {
     setLoading(true);
@@ -142,33 +157,33 @@ const CheckInComponent = () => {
       {/* Step 0: Select Dates */}
       {activeStep === 0 && (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-            <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#1a472a' }}>
+          <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#1a472a' }}>
             Select Check-in/Check-out Dates
-            </Typography>
-            <TextField
+          </Typography>
+          <TextField
             label="Check-in Date"
             type="date"
             InputLabelProps={{ shrink: true }}
             value={checkIn}
             onChange={(e) => setCheckIn(e.target.value)}
             sx={{ backgroundColor: '#f9f9f9', borderRadius: 1 }}
-            />
-            <TextField
+          />
+          <TextField
             label="Check-out Date"
             type="date"
             InputLabelProps={{ shrink: true }}
             value={checkOut}
             onChange={(e) => setCheckOut(e.target.value)}
             sx={{ backgroundColor: '#f9f9f9', borderRadius: 1 }}
-            />
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: '#1a472a' }}>
-              <Typography>Are you Sri Lankan?</Typography>
-              <Checkbox
+          />
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: '#1a472a' }}>
+            <Typography>Are you Sri Lankan?</Typography>
+            <Checkbox
               checked={isSriLankan}
               onChange={(e) => setIsSriLankan(e.target.checked)}
               sx={{ color: '#1a472a' }}
-              />
-            </Box>
+            />
+          </Box>
           <Button 
             variant="contained" 
             onClick={handleSearchRooms}
@@ -245,10 +260,16 @@ const CheckInComponent = () => {
             value={customerData.Phone}
             onChange={(e) => setCustomerData({ ...customerData, Phone: e.target.value })}
           />
-          <TextField
-            label="Country"
+          <Autocomplete
+            options={countries}
             value={customerData.Country}
-            onChange={(e) => setCustomerData({ ...customerData, Country: e.target.value })}
+            onChange={(event, newValue) => {
+              if (!isSriLankan) {
+                setCustomerData({ ...customerData, Country: newValue || '' });
+              }
+            }}
+            disabled={isSriLankan}
+            renderInput={(params) => <TextField {...params} label="Country" />}
           />
           <TextField
             label="NIC/Passport"

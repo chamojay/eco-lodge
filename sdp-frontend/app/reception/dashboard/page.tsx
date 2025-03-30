@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import CheckInComponent from '@/components/Check-In/page';
 import CheckOutComponent from '@/components/Check-out/page';
+import ReceptionRoom, { Room } from '@/components/ReceptionRoom/page';
 import { 
   Box, 
   Drawer, 
@@ -17,8 +18,6 @@ import {
   IconButton,
   Avatar,
   Button,
-  Grid,
-  Paper,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -37,14 +36,6 @@ import {
 } from '@mui/icons-material';
 import { styled } from '@mui/material/styles';
 
-interface Room {
-  number: number;
-  reserved: boolean;
-  customer: string | null;
-  checkIn: string | null;
-  checkOut: string | null;
-}
-
 const drawerWidth = 240;
 const collapsedDrawerWidth = 56;
 
@@ -59,7 +50,7 @@ const Main = styled('main', { shouldForwardProp: (prop) => prop !== 'open' })<{ 
     marginLeft: `-${drawerWidth}px`,
     marginTop: theme.spacing(8),
     backgroundColor: '#ffffff',
-    minHeight: 'calc(100vh - 64px)', // Full height minus app bar
+    minHeight: 'calc(100vh - 64px)',
     ...(open && {
       transition: theme.transitions.create('margin', {
         easing: theme.transitions.easing.easeOut,
@@ -110,55 +101,17 @@ const ReceptionDashboard: React.FC = () => {
   const renderContent = () => {
     switch(selectedMenu) {
       case 'rooms':
-        return (
-          <Box sx={{ p: 3 }}>
-            <Typography variant="h4" gutterBottom color="primary">
-              Room Status
-            </Typography>
-            <Grid container spacing={3}>
-              {rooms.map((room) => (
-                <Grid item key={room.number} xs={4}>
-                  <Paper
-                    onClick={() => handleRoomClick(room)}
-                    sx={{
-                      p: 2,
-                      height: 100,
-                      borderRadius: 4,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      cursor: 'pointer',
-                      backgroundColor: room.reserved ? '#ffebee' : '#e8f5e9',
-                      '&:hover': { transform: 'scale(1.05)' },
-                      transition: 'all 0.3s',
-                    }}
-                  >
-                    <Typography variant="h5" color={room.reserved ? 'error' : 'success.main'}>
-                      Room {room.number}
-                    </Typography>
-                  </Paper>
-                </Grid>
-              ))}
-            </Grid>
-          </Box>
-        );
-
-        case 'checkin':
-          return <CheckInComponent />;
-        case 'checkout':
-          return <CheckOutComponent />;
-          
+        return <ReceptionRoom rooms={rooms} onRoomClick={handleRoomClick} />;
+      case 'checkin':
+        return <CheckInComponent />;
+      case 'checkout':
+        return <CheckOutComponent />;
       case 'calendar':
         return (
           <Box sx={{ p: 3 }}>
             <Typography variant="h4" gutterBottom color="primary">
-              Reservation Calendar
+              Calendar
             </Typography>
-            <Paper sx={{ p: 2 }}>
-              <Typography variant="body1">
-                Calendar component is temporarily disabled.
-              </Typography>
-            </Paper>
           </Box>
         );
       default:
@@ -173,16 +126,9 @@ const ReceptionDashboard: React.FC = () => {
   };
 
   return (
-    <Box sx={{ 
-      display: 'flex', 
-      minHeight: '100vh',
-      backgroundColor: '#ffffff' // Ensures full background coverage
-    }}>
+    <Box sx={{ display: 'flex', minHeight: '100vh', backgroundColor: '#ffffff' }}>
       <CssBaseline />
-      <AppBar position="fixed" sx={{ 
-        zIndex: (theme) => theme.zIndex.drawer + 1,
-        backgroundColor: '#1a472a'
-      }}>
+      <AppBar position="fixed" sx={{ zIndex: (theme) => theme.zIndex.drawer + 1, backgroundColor: '#1a472a' }}>
         <Toolbar>
           <IconButton
             color="inherit"
@@ -212,13 +158,7 @@ const ReceptionDashboard: React.FC = () => {
           },
         }}
       >
-        <Box sx={{ 
-          display: 'flex', 
-          flexDirection: 'column', 
-          alignItems: 'center', 
-          p: open ? 2 : 1,
-          transition: '0.3s'
-        }}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', p: open ? 2 : 1, transition: '0.3s' }}>
           <Avatar 
             src="/logo.png"
             sx={{ 
@@ -230,11 +170,7 @@ const ReceptionDashboard: React.FC = () => {
           />
           <Typography 
             variant="h6" 
-            sx={{ 
-              opacity: open ? 1 : 0,
-              transition: '0.3s',
-              color: 'white'
-            }}
+            sx={{ opacity: open ? 1 : 0, transition: '0.3s', color: 'white' }}
           >
             Hotel Algama
           </Typography>
@@ -274,7 +210,7 @@ const ReceptionDashboard: React.FC = () => {
         </Box>
       </Drawer>
       <Main open={open}>
-        <Toolbar /> {/* Creates spacing under app bar */}
+        <Toolbar />
         {renderContent()}
       </Main>
 
