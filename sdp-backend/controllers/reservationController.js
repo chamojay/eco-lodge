@@ -132,7 +132,34 @@ const ReservationController = {
     } finally {
       connection.release();
     }
-  }
+  },
+
+
+  getAllRoomsStatus: async (req, res) => {
+    try {
+        const [rooms] = await pool.query(
+            `SELECT 
+                r.RoomNumber, 
+                r.Type, 
+                r.LocalPrice, 
+                r.ForeignPrice, 
+                r.MaxPeople,
+                COALESCE(res.Room_Status, 'Completed') AS Room_Status
+             FROM rooms r
+             LEFT JOIN reservations res 
+             ON r.RoomID = res.RoomID 
+             AND res.Room_Status = 'Confirmed' 
+             AND CURRENT_DATE BETWEEN res.CheckInDate AND res.CheckOutDate
+             GROUP BY r.RoomID`
+        );
+
+        res.json(rooms);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+},
+
+  
 };
 
 module.exports = ReservationController;

@@ -14,4 +14,6 @@ router.get('/active', controller.getActiveReservations);
 // Route to complete checkout and update room status
 router.put('/checkout/:id', controller.completeCheckout);
 
+router.get('/room-status',controller.getAllRoomsStatus);
+
 module.exports = router;

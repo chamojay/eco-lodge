@@ -21,5 +21,12 @@ export const reservationService = {
   completeCheckout: async (id: string) => {
     const response = await axios.put(`${API_URL}/checkout/${id}`);
     return response.data;
+  },
+
+  // ✅ Fetch all rooms with current status
+  getAllRoomsStatus: async () => {
+    const response = await axios.get(`${API_URL}/room-status`);
+    return response.data;
   }
 };
+
