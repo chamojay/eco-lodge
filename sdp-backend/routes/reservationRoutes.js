@@ -15,5 +15,6 @@ router.get('/active', controller.getActiveReservations);
 router.put('/checkout/:id', controller.completeCheckout);
 
 router.get('/room-status',controller.getAllRoomsStatus);
-
+//route to update reservation details
+router.put('/update/:id', controller.updateReservation);
 module.exports = router;
