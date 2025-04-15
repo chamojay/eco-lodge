@@ -31,10 +31,12 @@ import {
   ExitToApp,
   PersonAdd,
   CalendarToday,
-  Assignment,
+  EventNote,
   Logout,
+  DirectionsBike,
 } from '@mui/icons-material';
 import { styled } from '@mui/material/styles';
+import ReservationComponent from '@/components/Reservations-R/page';
 
 const drawerWidth = 240;
 const collapsedDrawerWidth = 56;
@@ -67,14 +69,8 @@ const Main = styled('main', { shouldForwardProp: (prop) => prop !== 'open' })<{ 
 const ReceptionDashboard: React.FC = () => {
   const [open, setOpen] = useState<boolean>(true);
   const [selectedMenu, setSelectedMenu] = useState<string>('rooms');
-  const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
   const [checkInOpen, setCheckInOpen] = useState<boolean>(false);
-  const [roomDetailsOpen, setRoomDetailsOpen] = useState<boolean>(false);
 
-  const [rooms, setRooms] = useState<Room[]>([
-    { number: 101, reserved: false, customer: null, checkIn: null, checkOut: null },
-    { number: 102, reserved: true, customer: 'John Doe', checkIn: '2023-08-15', checkOut: '2023-08-20' },
-  ]);
 
   const handleDrawerToggle = () => setOpen(!open);
 
@@ -87,25 +83,30 @@ const ReceptionDashboard: React.FC = () => {
     { id: 'checkin', label: 'Check-In', icon: <PersonAdd /> },
     { id: 'checkout', label: 'Check-Out', icon: <ExitToApp /> },
     { id: 'rooms', label: 'Rooms', icon: <MeetingRoom /> },
+    { id: 'reservations', label: 'Reservations', icon: <EventNote /> }, // Updated icon for Reservations
+    { id: 'activities', label: 'Activities', icon: <DirectionsBike /> }, 
     { id: 'calendar', label: 'Calendar', icon: <CalendarToday /> },
-    { id: 'reports', label: 'Reports', icon: <Assignment /> },
   ];
 
-  const handleRoomClick = (room: Room) => {
-    setSelectedRoom(room);
-    room.reserved ? setRoomDetailsOpen(true) : setCheckInOpen(true);
-  };
-
-  const handleCheckIn = () => setCheckInOpen(false);
-
+  
   const renderContent = () => {
     switch(selectedMenu) {
-      case 'rooms':
-        return <ReceptionRoom rooms={rooms} onRoomClick={handleRoomClick} />;
       case 'checkin':
         return <CheckInComponent />;
       case 'checkout':
         return <CheckOutComponent />;
+      case 'rooms':
+          return <ReceptionRoom />;
+      case 'reservations':
+        return <ReservationComponent />;
+      case 'activities':
+        return (
+          <Box sx={{ p: 3 }}>
+            <Typography variant="h4" gutterBottom color="primary">
+              Activities
+            </Typography>
+          </Box>
+        );
       case 'calendar':
         return (
           <Box sx={{ p: 3 }}>
@@ -249,7 +250,6 @@ const ReceptionDashboard: React.FC = () => {
             Cancel
           </Button>
           <Button 
-            onClick={handleCheckIn}
             sx={{
               backgroundColor: '#1a472a',
               color: 'white',

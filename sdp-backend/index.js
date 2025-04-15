@@ -3,26 +3,29 @@ const cors = require('cors');
 const userRoutes = require('./routes/userRoutes');
 const roomRoutes = require('./routes/roomRoutes');
 const reservationRoutes = require('./routes/reservationRoutes');
-
+const reservationTableRoutes = require('./routes/reservationtableRoutes');
+const customerTableRoutes = require('./routes/customertableRoutes');
 const app = express();
 const port = 5000;
 
 // Middleware
 app.use(express.json());
-app.use(cors({ origin: 'http://localhost:3000' })); // Allow frontend origin
+app.use(cors({ origin: 'http://localhost:3000' }));
 
 // API Routes
 app.use('/api/users', userRoutes);
 app.use('/api/rooms', roomRoutes);
 app.use('/api/reservations', reservationRoutes);
+app.use('/api/reservationinfo', reservationTableRoutes);
+app.use('/api/customerinfo', customerTableRoutes);
 
-// Error handling middleware (should be placed after routes)
+// Global error handler
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).json({ error: 'Internal Server Error' });
 });
 
-// Start Server
+// Start server
 app.listen(port, () => {
   console.log(`Server running on http://localhost:${port}`);
 });
