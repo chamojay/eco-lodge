@@ -35,17 +35,18 @@ const ReservationController = {
 
       const { roomNumber, customerData, reservationData } = req.body;
 
-      // 1️⃣ Insert customer details
+      // 1️⃣ Insert customer details with updated fields NIC and PassportNumber
       const [customerResult] = await connection.query(
-        `INSERT INTO customers (FirstName, LastName, Email, Phone, Country, Nic_Passport) 
-         VALUES (?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO customers (FirstName, LastName, Email, Phone, Country, NIC, PassportNumber) 
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
         [
           customerData.FirstName,
           customerData.LastName,
           customerData.Email,
           customerData.Phone,
           customerData.Country,
-          customerData.Nic_Passport
+          customerData.NIC,
+          customerData.PassportNumber
         ]
       );
 
@@ -134,99 +135,97 @@ const ReservationController = {
     }
   },
 
-
   getAllRoomsStatus: async (req, res) => {
     try {
-        const [rooms] = await pool.query(
-            `SELECT 
-                r.RoomNumber, 
-                r.Type, 
-                r.LocalPrice, 
-                r.ForeignPrice, 
-                r.MaxPeople,
-                COALESCE(res.Room_Status, 'Completed') AS Room_Status
-             FROM rooms r
-             LEFT JOIN reservations res 
-             ON r.RoomID = res.RoomID 
-             AND res.Room_Status = 'Confirmed' 
-             AND CURRENT_DATE BETWEEN res.CheckInDate AND res.CheckOutDate
-             GROUP BY r.RoomID`
-        );
+      const [rooms] = await pool.query(
+        `SELECT 
+            r.RoomNumber, 
+            r.Type, 
+            r.LocalPrice, 
+            r.ForeignPrice, 
+            r.MaxPeople,
+            COALESCE(res.Room_Status, 'Completed') AS Room_Status
+         FROM rooms r
+         LEFT JOIN reservations res 
+         ON r.RoomID = res.RoomID 
+         AND res.Room_Status = 'Confirmed' 
+         AND CURRENT_DATE BETWEEN res.CheckInDate AND res.CheckOutDate
+         GROUP BY r.RoomID`
+      );
 
-        res.json(rooms);
+      res.json(rooms);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+      res.status(500).json({ error: error.message });
     }
-},
+  },
 
-//controlllers for chekout section
-// Update reservation (limited fields only)
-updateReservation: async (req, res) => {
-  const { id } = req.params;
-  const {
-    CheckInDate,
-    CheckOutDate,
-    PackageType,
-    Adults,
-    Children,
-    SpecialRequests,
-    ArrivalTime,
-    DepartureTime
-  } = req.body;
+  // Controllers for checkout section
+  // Update reservation (limited fields only)
+  updateReservation: async (req, res) => {
+    const { id } = req.params;
+    const {
+      CheckInDate,
+      CheckOutDate,
+      PackageType,
+      Adults,
+      Children,
+      SpecialRequests,
+      ArrivalTime,
+      DepartureTime
+    } = req.body;
 
-  try {
-    const [result] = await pool.query(
-      `UPDATE reservations 
-       SET CheckInDate = ?, 
-           CheckOutDate = ?, 
-           PackageType = ?, 
-           Adults = ?, 
-           Children = ?, 
-           SpecialRequests = ?, 
-           ArrivalTime = ?, 
-           DepartureTime = ?
-       WHERE ReservationID = ?`,
-      [
-        CheckInDate,
-        CheckOutDate,
-        PackageType,
-        Adults,
-        Children,
-        SpecialRequests,
-        ArrivalTime,
-        DepartureTime,
-        id
-      ]
-    );
+    try {
+      const [result] = await pool.query(
+        `UPDATE reservations 
+         SET CheckInDate = ?, 
+             CheckOutDate = ?, 
+             PackageType = ?, 
+             Adults = ?, 
+             Children = ?, 
+             SpecialRequests = ?, 
+             ArrivalTime = ?, 
+             DepartureTime = ?
+         WHERE ReservationID = ?`,
+        [
+          CheckInDate,
+          CheckOutDate,
+          PackageType,
+          Adults,
+          Children,
+          SpecialRequests,
+          ArrivalTime,
+          DepartureTime,
+          id
+        ]
+      );
 
-    res.json({ success: true, message: 'Reservation updated successfully' });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-},
-
-//get reservation details
-getReservationDetails: async (req, res) => {
-  const { id } = req.params;
-  try {
-    const [reservation] = await pool.query(
-      `SELECT r.*, c.* 
-       FROM reservations r 
-       JOIN customers c ON r.CustomerID = c.CustomerID 
-       WHERE r.ReservationID = ?`,
-      [id]
-    );
-
-    if (reservation.length === 0) {
-      return res.status(404).json({ error: 'Reservation not found' });
+      res.json({ success: true, message: 'Reservation updated successfully' });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
     }
+  },
 
-    res.json(reservation[0]);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-},
-  
+  // Get reservation details
+  getReservationDetails: async (req, res) => {
+    const { id } = req.params;
+    try {
+      const [reservation] = await pool.query(
+        `SELECT r.*, c.* 
+         FROM reservations r 
+         JOIN customers c ON r.CustomerID = c.CustomerID 
+         WHERE r.ReservationID = ?`,
+        [id]
+      );
+
+      if (reservation.length === 0) {
+        return res.status(404).json({ error: 'Reservation not found' });
+      }
+
+      res.json(reservation[0]);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  },
 };
 
 module.exports = ReservationController;

@@ -37,7 +37,8 @@ type Reservation = {
   Email: string;
   Phone: string;
   Country: string;
-  Nic_Passport: string;
+  NIC: string;
+  PassportNumber: string;
 };
 
 const ReservationComponent = () => {
@@ -198,7 +199,8 @@ const ReservationComponent = () => {
               </Select>
             </FormControl>
 
-            <TextField name="Nic_Passport" label="NIC/Passport" value={selected?.Nic_Passport || ''} onChange={handleChange} />
+            <TextField name="NIC" label="NIC" value={selected?.NIC || ''} onChange={handleChange} />
+            <TextField name="PassportNumber" label="Passport Number" value={selected?.PassportNumber || ''} onChange={handleChange} />
           </Box>
         </DialogContent>
         <DialogActions>
@@ -218,7 +220,8 @@ const ReservationComponent = () => {
             <Typography><strong>Email:</strong> {selected?.Email}</Typography>
             <Typography><strong>Phone:</strong> {selected?.Phone}</Typography>
             <Typography><strong>Country:</strong> {selected?.Country}</Typography>
-            <Typography><strong>NIC/Passport:</strong> {selected?.Nic_Passport}</Typography>
+            <Typography><strong>NIC:</strong> {selected?.NIC}</Typography>
+            <Typography><strong>Passport Number:</strong> {selected?.PassportNumber}</Typography>
           </Box>
 
           <Box>

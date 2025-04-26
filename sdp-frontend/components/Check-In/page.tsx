@@ -41,7 +41,8 @@ const CheckInComponent = () => {
     Email: '',
     Phone: '',
     Country: '',
-    Nic_Passport: ''
+    NIC: '',
+    PassportNumber: '',
   });
   const [reservationData, setReservationData] = useState({
     PackageType: 'RoomOnly',
@@ -308,9 +309,16 @@ const CheckInComponent = () => {
             renderInput={(params) => <TextField {...params} label="Country" />}
           />
           <TextField
-            label="NIC/Passport"
-            value={customerData.Nic_Passport}
-            onChange={(e) => setCustomerData({ ...customerData, Nic_Passport: e.target.value })}
+            label="NIC"
+            value={customerData.NIC}
+            onChange={(e) => setCustomerData({ ...customerData, NIC: e.target.value })}
+            
+          />
+
+          <TextField
+            label="Passport Number"
+            value={customerData.PassportNumber}
+            onChange={(e) => setCustomerData({ ...customerData, PassportNumber: e.target.value })}
           />
           <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 2 }}>
             <Button variant="outlined" onClick={() => setActiveStep(1)}>
