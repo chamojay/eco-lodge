@@ -10,7 +10,8 @@ const port = 5000;
 
 // Middleware
 app.use(express.json());
-app.use(cors({ origin: 'http://localhost:3000' }));
+app.use(cors({ origin: ['http://localhost:3000', 'http://localhost:3001'] })); // Allow requests from React app
+
 
 // API Routes
 app.use('/api/users', userRoutes);
