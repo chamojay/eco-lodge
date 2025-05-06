@@ -1,0 +1,219 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model customers {
+  CustomerID     Int              @id @default(autoincrement())
+  Title          customers_Title?
+  FirstName      String           @db.VarChar(50)
+  LastName       String           @db.VarChar(50)
+  Email          String           @db.VarChar(100)
+  Phone          String           @db.VarChar(20)
+  Country        String           @db.VarChar(50)
+  CreatedAt      DateTime?        @default(now()) @db.Timestamp(0)
+  NIC            String?          @db.VarChar(12)
+  PassportNumber String?          @db.VarChar(15)
+  payments       payments[]
+  reservations   reservations[]
+}
+
+model extra_charge_types {
+  TypeID        Int             @id @default(autoincrement())
+  Name          String          @db.VarChar(100)
+  DefaultAmount Decimal         @db.Decimal(10, 2)
+  extra_charges extra_charges[]
+}
+
+model extra_charges {
+  ChargeID           Int                 @id @default(autoincrement())
+  ReservationID      Int
+  TypeID             Int?
+  Description        String?             @db.VarChar(255)
+  Amount             Decimal             @db.Decimal(10, 2)
+  CreatedAt          DateTime?           @default(now()) @db.DateTime(0)
+  reservations       reservations        @relation(fields: [ReservationID], references: [ReservationID], onDelete: Cascade, onUpdate: NoAction, map: "extra_charges_ibfk_1")
+  extra_charge_types extra_charge_types? @relation(fields: [TypeID], references: [TypeID], onUpdate: NoAction, map: "extra_charges_ibfk_2")
+
+  @@index([ReservationID], map: "ReservationID")
+  @@index([TypeID], map: "TypeID")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model feedback {
+  FeedbackID Int       @id @default(autoincrement())
+  UserID     Int?
+  Message    String    @db.Text
+  Rating     Int?
+  CreatedAt  DateTime? @default(now()) @db.Timestamp(0)
+  users      users?    @relation(fields: [UserID], references: [UserID], onDelete: Cascade, onUpdate: NoAction, map: "feedback_ibfk_1")
+
+  @@index([UserID], map: "UserID")
+}
+
+model orderitems {
+  OrderItemID    Int             @id @default(autoincrement())
+  OrderID        Int?
+  ItemID         Int?
+  Quantity       Int
+  Subtotal       Decimal         @db.Decimal(10, 2)
+  orders         orders?         @relation(fields: [OrderID], references: [OrderID], onDelete: Cascade, onUpdate: NoAction, map: "orderitems_ibfk_1")
+  restaurantmenu restaurantmenu? @relation(fields: [ItemID], references: [ItemID], onDelete: Cascade, onUpdate: NoAction, map: "orderitems_ibfk_2")
+
+  @@index([ItemID], map: "ItemID")
+  @@index([OrderID], map: "OrderID")
+}
+
+model orders {
+  OrderID     Int            @id @default(autoincrement())
+  CustomerID  Int?
+  TotalAmount Decimal        @db.Decimal(10, 2)
+  OrderDate   DateTime?      @default(now()) @db.Timestamp(0)
+  Status      orders_Status? @default(Pending)
+  orderitems  orderitems[]
+  users       users?         @relation(fields: [CustomerID], references: [UserID], onUpdate: NoAction, map: "orders_ibfk_1")
+  payments    payments[]
+
+  @@index([CustomerID], map: "CustomerID")
+}
+
+model payments {
+  PaymentID     Int                    @id @default(autoincrement())
+  UserID        Int?
+  ReservationID Int?
+  OrderID       Int?
+  Amount        Decimal                @db.Decimal(10, 2)
+  PaymentMethod payments_PaymentMethod
+  PaymentDate   DateTime?              @default(now()) @db.Timestamp(0)
+  CustomerID    Int?
+  users         users?                 @relation(fields: [UserID], references: [UserID], onUpdate: NoAction, map: "payments_ibfk_1")
+  reservations  reservations?          @relation(fields: [ReservationID], references: [ReservationID], onDelete: NoAction, onUpdate: NoAction, map: "payments_ibfk_2")
+  orders        orders?                @relation(fields: [OrderID], references: [OrderID], onUpdate: NoAction, map: "payments_ibfk_3")
+  customers     customers?             @relation(fields: [CustomerID], references: [CustomerID], onDelete: NoAction, onUpdate: NoAction, map: "payments_ibfk_4")
+
+  @@index([CustomerID], map: "CustomerID")
+  @@index([OrderID], map: "OrderID")
+  @@index([UserID], map: "UserID")
+  @@index([ReservationID], map: "payments_ibfk_2")
+}
+
+model reservations {
+  ReservationID   Int                       @id @default(autoincrement())
+  CustomerID      Int
+  CheckInDate     DateTime                  @db.Date
+  CheckOutDate    DateTime                  @db.Date
+  TotalAmount     Decimal?                  @db.Decimal(10, 2)
+  Room_Status     reservations_Room_Status  @default(Pending)
+  PackageType     reservations_PackageType? @default(RoomOnly)
+  Adults          Int?
+  Children        Int?
+  SpecialRequests String?                   @db.Text
+  ArrivalTime     DateTime?                 @db.Time(0)
+  DepartureTime   DateTime?                 @db.Time(0)
+  CreatedAt       DateTime?                 @default(now()) @db.Timestamp(0)
+  RoomID          Int
+  extra_charges   extra_charges[]
+  payments        payments[]
+  customers       customers                 @relation(fields: [CustomerID], references: [CustomerID], onDelete: NoAction, onUpdate: NoAction, map: "reservations_ibfk_1")
+  rooms           rooms                     @relation(fields: [RoomID], references: [RoomID], onDelete: NoAction, onUpdate: NoAction, map: "reservations_ibfk_2")
+
+  @@index([CustomerID], map: "CustomerID")
+  @@index([RoomID], map: "RoomID")
+}
+
+model restaurantmenu {
+  ItemID      Int                     @id @default(autoincrement())
+  ItemName    String                  @db.VarChar(100)
+  Description String?                 @db.Text
+  Price       Decimal                 @db.Decimal(10, 2)
+  Category    restaurantmenu_Category
+  orderitems  orderitems[]
+}
+
+model rooms {
+  RoomID       Int            @id @default(autoincrement())
+  RoomNumber   Int            @unique(map: "RoomNumber")
+  Type         rooms_Type
+  LocalPrice   Decimal        @db.Decimal(10, 2)
+  Description  String?        @db.Text
+  ForeignPrice Decimal        @db.Decimal(10, 2)
+  MaxPeople    Int
+  reservations reservations[]
+}
+
+model user {
+  id       Int    @id @default(autoincrement())
+  name     String @db.VarChar(255)
+  email    String @unique(map: "email") @db.VarChar(255)
+  password String @db.VarChar(255)
+}
+
+model users {
+  UserID       Int        @id @default(autoincrement())
+  FullName     String     @db.VarChar(100)
+  Email        String     @unique(map: "Email") @db.VarChar(100)
+  PasswordHash String     @db.VarChar(255)
+  Role         users_Role
+  CreatedAt    DateTime?  @default(now()) @db.Timestamp(0)
+  feedback     feedback[]
+  orders       orders[]
+  payments     payments[]
+}
+
+enum customers_Title {
+  Mr
+  Mrs
+  Ms
+}
+
+enum rooms_Type {
+  Cabana
+  Delux
+  Suite
+  Standard
+}
+
+enum restaurantmenu_Category {
+  Starter
+  Main_Course @map("Main Course")
+  Dessert
+  Beverage
+}
+
+enum orders_Status {
+  Pending
+  Processing
+  Completed
+  Cancelled
+}
+
+enum users_Role {
+  Admin
+  Receptionist
+  Cashier
+  Customer
+}
+
+enum payments_PaymentMethod {
+  Cash
+  Credit_Card    @map("Credit Card")
+  Debit_Card     @map("Debit Card")
+  Online_Payment @map("Online Payment")
+}
+
+enum reservations_Room_Status {
+  Pending
+  Confirmed
+  Cancelled
+  Completed
+}
+
+enum reservations_PackageType {
+  RoomOnly
+  HalfBoard
+  FullBoard
+}
