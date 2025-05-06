@@ -112,7 +112,7 @@ const CheckInComponent = () => {
       try {
         const response = await axios.get('https://open.er-api.com/v6/latest/USD');
         console.log('API Response:', response.data); // Log full response for debugging
-        const rate = response.data.rates?.LKR;
+        const rate = (response.data as { rates: { LKR: number } }).rates?.LKR;
         if (!rate) {
           throw new Error('LKR rate not found in response');
         }

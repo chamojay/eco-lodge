@@ -1,10 +1,13 @@
 {
   "dependencies": {
+    "@prisma/client": "^6.7.0",
     "bcryptjs": "^3.0.2",
     "body-parser": "^1.20.3",
     "cors": "^2.8.5",
     "express": "^4.21.2",
     "jsonwebtoken": "^9.0.2",
-    "mysql2": "^3.13.0"
+    "mysql2": "^3.13.0",
+    "notistack": "^3.0.2",
+    "prisma": "^6.7.0"
   }
 }

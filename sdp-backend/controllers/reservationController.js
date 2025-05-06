@@ -1,7 +1,7 @@
 const pool = require('../config/db');
 
 const ReservationController = {
-  // ✅ Check room availability
+  // Check room availability
   checkAvailability: async (req, res) => {
     try {
       const { checkIn, checkOut } = req.body;
@@ -27,7 +27,7 @@ const ReservationController = {
     }
   },
 
-  // ✅ Create a new reservation
+  // Create a new reservation
   createReservation: async (req, res) => {
     const connection = await pool.getConnection();
     try {
@@ -35,7 +35,7 @@ const ReservationController = {
 
       const { roomNumber, customerData, reservationData } = req.body;
 
-      // 1️⃣ Insert customer details with updated fields NIC and PassportNumber
+      // Insert customer details
       const [customerResult] = await connection.query(
         `INSERT INTO customers (FirstName, LastName, Email, Phone, Country, NIC, PassportNumber) 
          VALUES (?, ?, ?, ?, ?, ?, ?)`,
@@ -50,7 +50,7 @@ const ReservationController = {
         ]
       );
 
-      // 2️⃣ Get Room ID from Room Number
+      // Get Room ID from Room Number
       const [room] = await connection.query(
         'SELECT RoomID FROM rooms WHERE RoomNumber = ?',
         [roomNumber]
@@ -60,10 +60,10 @@ const ReservationController = {
         throw new Error('Room not found');
       }
 
-      // 3️⃣ Insert reservation with Room_Status
+      // Insert reservation
       const [reservationResult] = await connection.query(
         `INSERT INTO reservations (CustomerID, RoomID, CheckInDate, CheckOutDate, TotalAmount, PackageType, Adults, Children, SpecialRequests, ArrivalTime, DepartureTime, Room_Status)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )`,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           customerResult.insertId,
           room[0].RoomID,
@@ -94,13 +94,14 @@ const ReservationController = {
     }
   },
 
-  // ✅ Fetch active reservations
+  // Fetch active reservations
   getActiveReservations: async (req, res) => {
     try {
       const [reservations] = await pool.query(
         `SELECT r.ReservationID, r.CheckOutDate, 
                 c.FirstName, c.LastName,
-                rm.RoomNumber
+                rm.RoomNumber,
+                r.TotalAmount
          FROM reservations r
          JOIN customers c ON r.CustomerID = c.CustomerID
          JOIN rooms rm ON r.RoomID = rm.RoomID
@@ -112,29 +113,36 @@ const ReservationController = {
     }
   },
 
-  // ✅ Complete checkout and free room
+  // Complete checkout and update total amount
   completeCheckout: async (req, res) => {
+    const { id } = req.params;
+    const { totalAmount } = req.body;
+
     const connection = await pool.getConnection();
     try {
       await connection.beginTransaction();
-      const { id } = req.params;
 
-      // 1️⃣ Update reservation status
+      // Update reservation status and total amount
       await connection.query(
-        'UPDATE reservations SET Room_Status = "Completed" WHERE ReservationID = ?',
-        [id]
+        'UPDATE reservations SET Room_Status = "Completed", TotalAmount = ? WHERE ReservationID = ?',
+        [totalAmount, id]
       );
 
       await connection.commit();
       res.json({ success: true });
     } catch (error) {
       await connection.rollback();
-      res.status(500).json({ error: error.message });
+      console.error('Error completing checkout:', error);
+      res.status(500).json({ 
+        success: false, 
+        error: error.message 
+      });
     } finally {
       connection.release();
     }
   },
 
+  // Get all rooms status
   getAllRoomsStatus: async (req, res) => {
     try {
       const [rooms] = await pool.query(
@@ -159,7 +167,6 @@ const ReservationController = {
     }
   },
 
-  // Controllers for checkout section
   // Update reservation (limited fields only)
   updateReservation: async (req, res) => {
     const { id } = req.params;
