@@ -1,13 +1,19 @@
 'use client';
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { 
-  Box, Typography, Button, IconButton, TextField, Select, MenuItem, 
-  Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper,
+  Box, Typography, Button, TextField, Select, MenuItem, 
   Dialog, DialogTitle, DialogContent, DialogActions, InputAdornment 
 } from '@mui/material';
-import { Add, Edit, Delete, Search } from '@mui/icons-material';
+import { Add, Search } from '@mui/icons-material';
+import {
+  MaterialReactTable,
+  useMaterialReactTable,
+  type MRT_ColumnDef,
+} from 'material-react-table';
 import { getRooms, createRoom, updateRoom, deleteRoom } from '@/app/services/roomService';
 import { RoomType } from '@/types/roomTypes';
+import { IconButton } from '@mui/material';
+import { Edit, Delete } from '@mui/icons-material';
 
 const AdminRooms: React.FC = () => {
   // State Management
@@ -126,12 +132,134 @@ const AdminRooms: React.FC = () => {
     }
   };
 
+  // Define columns for MaterialReactTable
+  const columns = useMemo<MRT_ColumnDef<RoomType>[]>(
+    () => [
+      {
+        accessorKey: 'RoomNumber',
+        header: 'Room Number',
+        size: 120,
+        minSize: 100,
+      },
+      {
+        accessorKey: 'Type',
+        header: 'Type',
+        size: 120,
+        minSize: 100,
+      },
+      {
+        accessorKey: 'LocalPrice',
+        header: 'Local Price (LKR)',
+        size: 140,
+        minSize: 120,
+        Cell: ({ cell }) => cell.getValue<number>().toLocaleString(),
+      },
+      {
+        accessorKey: 'ForeignPrice',
+        header: 'Foreign Price ($)',
+        size: 140,
+        minSize: 120,
+        Cell: ({ cell }) => `$${cell.getValue<number>().toLocaleString()}`,
+      },
+      {
+        accessorKey: 'MaxPeople',
+        header: 'Max People',
+        size: 120,
+        minSize: 100,
+      },
+      {
+        accessorKey: 'Description',
+        header: 'Description',
+        size: 180,
+        minSize: 150,
+      },
+      {
+        accessorKey: 'RoomID',
+        header: 'Actions',
+        size: 120,
+        minSize: 100,
+        enableSorting: false,
+        enableColumnActions: false,
+        Cell: ({ row }) => (
+          <>
+            <IconButton 
+              onClick={() => handleEditRoom(row.original)} 
+              sx={{ color: '#1a472a' }} 
+              disabled={loading}
+            >
+              <Edit />
+            </IconButton>
+            <IconButton 
+              onClick={() => handleDeleteRoom(row.original.RoomID)} 
+              sx={{ color: '#d32f2f' }} 
+              disabled={loading}
+            >
+              <Delete />
+            </IconButton>
+          </>
+        ),
+      },
+    ],
+    [loading]
+  );
+
+  const table = useMaterialReactTable({
+    columns,
+    data: rooms,
+    state: { isLoading: loading },
+    enableColumnVirtualization: true, // Enable column virtualization for better performance on small screens
+    muiTableHeadCellProps: {
+      sx: {
+        backgroundColor: '#1a472a',
+        color: 'white',
+        '& .MuiTableSortLabel-icon': {
+          color: 'white !important', // Ensure sort icons are white
+        },
+        '& .MuiIconButton-root': {
+          color: 'white !important', // Ensure other icons are white
+        },
+      },
+    },
+    muiTableProps: {
+      sx: {
+        tableLayout: 'auto',
+        width: '100%',
+        '@media (max-width: 600px)': {
+          minWidth: 'auto', // Allow table to shrink on small screens
+        },
+      },
+    },
+    muiTableBodyCellProps: {
+      sx: {
+        whiteSpace: 'normal', // Allow text wrapping in cells
+        wordBreak: 'break-word',
+      },
+    },
+  });
+
   return (
-    <Box sx={{ p: 3 }}>
+    <Box sx={{ p: { xs: 2, sm: 3 } }}>
       {/* Header with Search, Filter, and Add Button */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+      <Box 
+        sx={{ 
+          display: 'flex', 
+          flexDirection: { xs: 'column', sm: 'row' }, 
+          justifyContent: 'space-between', 
+          alignItems: { xs: 'stretch', sm: 'center' }, 
+          mb: 2,
+          gap: { xs: 2, sm: 0 }
+        }}
+      >
         <Typography variant="h5">Rooms Management</Typography>
-        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+        <Box 
+          sx={{ 
+            display: 'flex', 
+            flexDirection: { xs: 'column', sm: 'row' }, 
+            alignItems: { xs: 'stretch', sm: 'center' }, 
+            gap: 1,
+            width: { xs: '100%', sm: 'auto' }
+          }}
+        >
           <TextField
             placeholder="Search rooms..."
             variant="outlined"
@@ -145,13 +273,21 @@ const AdminRooms: React.FC = () => {
                 </InputAdornment>
               ),
             }}
-            sx={{ mr: 2 }}
+            sx={{ 
+              flex: { xs: '1 0 100%', sm: '0 1 auto' }, 
+              mr: { sm: 2 },
+              minWidth: { sm: 200 }
+            }}
           />
           <Select
             value={filterType}
             onChange={(e) => setFilterType(e.target.value)}
             size="small"
-            sx={{ minWidth: 120, mr: 2 }}
+            sx={{ 
+              flex: { xs: '1 0 100%', sm: '0 1 auto' }, 
+              minWidth: { xs: '100%', sm: 120 }, 
+              mr: { sm: 2 }
+            }}
           >
             <MenuItem value="All">All Types</MenuItem>
             <MenuItem value="Delux">Delux</MenuItem>
@@ -163,52 +299,36 @@ const AdminRooms: React.FC = () => {
             variant="contained" 
             startIcon={<Add />} 
             onClick={handleRoomDialogOpen}
-            sx={{ backgroundColor: '#1a472a', '&:hover': { backgroundColor: '#2e7d32' } }}
+            sx={{ 
+              flex: { xs: '1 0 100%', sm: '0 1 auto' }, 
+              backgroundColor: '#1a472a', 
+              '&:hover': { backgroundColor: '#2e7d32' },
+              minWidth: { xs: '100%', sm: 'auto' }
+            }}
           >
             Add Room
           </Button>
         </Box>
       </Box>
 
-      {/* Rooms Table */}
-      <TableContainer component={Paper}>
-        <Table>
-          <TableHead sx={{ backgroundColor: '#1a472a' }}>
-            <TableRow>
-              <TableCell sx={{ color: 'white' }}>Room Number</TableCell>
-              <TableCell sx={{ color: 'white' }}>Type</TableCell>
-              <TableCell sx={{ color: 'white' }}>Local Price (LKR)</TableCell>
-              <TableCell sx={{ color: 'white' }}>Foreign Price ($)</TableCell>
-              <TableCell sx={{ color: 'white' }}>Max People</TableCell>
-              <TableCell sx={{ color: 'white' }}>Description</TableCell>
-              <TableCell sx={{ color: 'white' }}>Actions</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {rooms.map((room) => (
-              <TableRow key={room.RoomID}>
-                <TableCell>{room.RoomNumber}</TableCell>
-                <TableCell>{room.Type}</TableCell>
-                <TableCell>{room.LocalPrice.toLocaleString()}</TableCell>
-                <TableCell>${room.ForeignPrice.toLocaleString()}</TableCell>
-                <TableCell>{room.MaxPeople}</TableCell>
-                <TableCell>{room.Description}</TableCell>
-                <TableCell>
-                  <IconButton onClick={() => handleEditRoom(room)} sx={{ color: '#1a472a' }} disabled={loading}>
-                    <Edit />
-                  </IconButton>
-                  <IconButton onClick={() => handleDeleteRoom(room.RoomID)} sx={{ color: '#d32f2f' }} disabled={loading}>
-                    <Delete />
-                  </IconButton>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </TableContainer>
+      {/* MaterialReactTable */}
+      <Box sx={{ overflowX: 'auto' }}>
+        <MaterialReactTable table={table} />
+      </Box>
 
       {/* Add/Edit Room Dialog */}
-      <Dialog open={roomDialogOpen} onClose={handleRoomDialogClose}>
+      <Dialog 
+        open={roomDialogOpen} 
+        onClose={handleRoomDialogClose}
+        fullWidth
+        maxWidth="sm"
+        PaperProps={{
+          sx: {
+            width: { xs: '90%', sm: '100%' },
+            m: { xs: 1, sm: 2 },
+          },
+        }}
+      >
         <DialogTitle>{currentRoom.RoomID ? 'Edit Room' : 'Add New Room'}</DialogTitle>
         <DialogContent>
           <TextField

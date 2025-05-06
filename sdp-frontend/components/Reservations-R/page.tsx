@@ -1,11 +1,15 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import {
-  Box, Typography, Table, TableBody, TableCell, TableContainer,
-  TableHead, TableRow, Paper, Button, Dialog, DialogTitle,
-  DialogContent, TextField, DialogActions, MenuItem, Select, InputLabel, FormControl, Divider
+  Box, Typography, Button, Dialog, DialogTitle, DialogContent, TextField,
+  DialogActions, MenuItem, Select, InputLabel, FormControl, Divider,
 } from '@mui/material';
+import {
+  MaterialReactTable,
+  useMaterialReactTable,
+  type MRT_ColumnDef,
+} from 'material-react-table';
 import {
   fetchAllReservations,
   fetchReservationById,
@@ -16,6 +20,7 @@ import { reservationService } from '@/app/services/reservationService';
 const countries = ['Afghanistan', 'Albania', 'Algeria', 'Andorra', 'Angola', 'Sri Lanka', 'India', 'United States', 'Zambia', 'Zimbabwe'];
 const packageTypes = ['Fullboard', 'Halfboard', 'RoomOnly'];
 const titles = ['Mr', 'Mrs', 'Ms'];
+const statusOptions = ['All', 'Active', 'Future', 'Past'];
 
 type Reservation = {
   ReservationID: number;
@@ -47,15 +52,17 @@ const ReservationComponent = () => {
   const [viewOpen, setViewOpen] = useState(false);
   const [selected, setSelected] = useState<Reservation | null>(null);
   const [availableRooms, setAvailableRooms] = useState<string[]>([]);
+  const [filterStatus, setFilterStatus] = useState<string>('All');
+
+  // Fetch reservations
+  const loadReservations = useCallback(async () => {
+    const data = await fetchAllReservations();
+    setReservations(data);
+  }, []);
 
   useEffect(() => {
     loadReservations();
-  }, []);
-
-  const loadReservations = async () => {
-    const data = await fetchAllReservations();
-    setReservations(data);
-  };
+  }, [loadReservations]);
 
   const handleEditClick = async (id: number) => {
     const data = await fetchReservationById(id);
@@ -103,141 +110,412 @@ const ReservationComponent = () => {
     }
   };
 
-  const renderTable = (status: string) => {
-    const filtered = reservations.filter((r) => r.Status === status);
-    return (
-      <Box mb={5}>
-        <Typography variant="h6" gutterBottom sx={{ color: 'darkgreen' }}>
-          {status} Reservations
-        </Typography>
-        <TableContainer component={Paper}>
-          <Table>
-            <TableHead>
-              <TableRow sx={{ backgroundColor: '#2e7d32' }}>
-                <TableCell sx={{ color: 'white' }}>Reservation ID</TableCell>
-                <TableCell sx={{ color: 'white' }}>Customer Name</TableCell>
-                <TableCell sx={{ color: 'white' }}>Room</TableCell>
-                <TableCell sx={{ color: 'white' }}>Check-In</TableCell>
-                <TableCell sx={{ color: 'white' }}>Check-Out</TableCell>
-                <TableCell sx={{ color: 'white' }}>Actions</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {filtered.map((r) => (
-                <TableRow key={r.ReservationID}>
-                  <TableCell>{r.ReservationID}</TableCell>
-                  <TableCell>{`${r.Title} ${r.FirstName} ${r.LastName}`}</TableCell>
-                  <TableCell>{r.RoomNumber}</TableCell>
-                  <TableCell>{r.CheckInDate}</TableCell>
-                  <TableCell>{r.CheckOutDate}</TableCell>
-                  <TableCell>
-                    <Button variant="outlined" size="small" onClick={() => handleEditClick(r.ReservationID)}>Edit</Button>
-                    <Button variant="text" size="small" onClick={() => handleViewClick(r.ReservationID)} sx={{ ml: 1 }}>View</Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
-      </Box>
-    );
-  };
+  // Filter reservations based on status
+  const filteredReservations = useMemo(() => {
+    if (filterStatus === 'All') {
+      return reservations;
+    }
+    return reservations.filter((r) => r.Status === filterStatus);
+  }, [reservations, filterStatus]);
+
+  // Define columns for MaterialReactTable
+  const columns = useMemo<MRT_ColumnDef<Reservation>[]>(
+    () => [
+      {
+        accessorKey: 'ReservationID',
+        header: 'Reservation ID',
+        size: 120,
+        minSize: 100,
+      },
+      {
+        accessorFn: (row) => `${row.Title} ${row.FirstName} ${row.LastName}`,
+        header: 'Customer Name',
+        size: 180,
+        minSize: 150,
+      },
+      {
+        accessorKey: 'RoomNumber',
+        header: 'Room',
+        size: 120,
+        minSize: 100,
+      },
+      {
+        accessorKey: 'CheckInDate',
+        header: 'Check-In',
+        size: 140,
+        minSize: 120,
+        Cell: ({ cell }) => cell.getValue<string>().split('T')[0],
+      },
+      {
+        accessorKey: 'CheckOutDate',
+        header: 'Check-Out',
+        size: 140,
+        minSize: 120,
+        Cell: ({ cell }) => cell.getValue<string>().split('T')[0],
+      },
+      {
+        accessorKey: 'ReservationID',
+        header: 'Actions',
+        size: 140,
+        minSize: 120,
+        enableSorting: false,
+        enableColumnActions: false,
+        Cell: ({ row }) => (
+          <>
+            <Button
+              variant="outlined"
+              size="small"
+              onClick={() => handleEditClick(row.original.ReservationID)}
+              sx={{ mr: 1 }}
+            >
+              Edit
+            </Button>
+            <Button
+              variant="text"
+              size="small"
+              onClick={() => handleViewClick(row.original.ReservationID)}
+            >
+              View
+            </Button>
+          </>
+        ),
+      },
+    ],
+    []
+  );
+
+  const table = useMaterialReactTable({
+    columns,
+    data: filteredReservations,
+    enableColumnVirtualization: true,
+    muiTableHeadCellProps: {
+      sx: {
+        backgroundColor: '#2e7d32',
+        color: 'white',
+        '& .MuiTableSortLabel-icon': {
+          color: 'white !important',
+        },
+        '& .MuiIconButton-root': {
+          color: 'white !important',
+        },
+      },
+    },
+    muiTableProps: {
+      sx: {
+        tableLayout: 'auto',
+        width: '100%',
+        '@media (max-width: 600px)': {
+          minWidth: 'auto',
+        },
+      },
+    },
+    muiTableBodyCellProps: {
+      sx: {
+        whiteSpace: 'normal',
+        wordBreak: 'break-word',
+      },
+    },
+  });
 
   return (
-    <Box p={4}>
-      <Typography variant="h4" gutterBottom sx={{ color: 'darkgreen' }}>Reservation Management</Typography>
-      {renderTable('Active')}
-      {renderTable('Future')}
-      {renderTable('Past')}
+    <Box sx={{ p: { xs: 2, sm: 4 } }}>
+      <Box
+        sx={{
+          display: 'flex',
+          flexDirection: { xs: 'column', sm: 'row' },
+          justifyContent: 'space-between',
+          alignItems: { xs: 'stretch', sm: 'center' },
+          mb: 2,
+          gap: { xs: 2, sm: 0 },
+        }}
+      >
+        <Typography variant="h4" sx={{ color: 'darkgreen' }}>
+          Reservation Management
+        </Typography>
+        <Box
+          sx={{
+            display: 'flex',
+            flexDirection: { xs: 'column', sm: 'row' },
+            alignItems: { xs: 'stretch', sm: 'center' },
+            gap: 1,
+            width: { xs: '100%', sm: 'auto' },
+          }}
+        >
+          <Select
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value)}
+            size="small"
+            sx={{
+              flex: { xs: '1 0 100%', sm: '0 1 auto' },
+              minWidth: { xs: '100%', sm: 120 },
+            }}
+          >
+            {statusOptions.map((status) => (
+              <MenuItem key={status} value={status}>
+                {status}
+              </MenuItem>
+            ))}
+          </Select>
+        </Box>
+      </Box>
+
+      <Box sx={{ overflowX: 'auto' }}>
+        <MaterialReactTable table={table} />
+      </Box>
 
       {/* Edit Dialog */}
       <Dialog open={open} onClose={() => setOpen(false)} maxWidth="md" fullWidth>
         <DialogTitle>Edit Reservation</DialogTitle>
         <DialogContent>
           <Box display="grid" gridTemplateColumns="repeat(3, 1fr)" gap={2} mt={1}>
-            <TextField name="CheckInDate" label="Check-In Date" type="date" value={selected?.CheckInDate || ''} onChange={handleChange} InputLabelProps={{ shrink: true }} />
-            <TextField name="CheckOutDate" label="Check-Out Date" type="date" value={selected?.CheckOutDate || ''} onChange={handleChange} InputLabelProps={{ shrink: true }} />
-            <TextField name="Room_Status" label="Room Status" value={selected?.Room_Status || ''} onChange={handleChange} />
-            
+            <TextField
+              name="CheckInDate"
+              label="Check-In Date"
+              type="date"
+              value={selected?.CheckInDate || ''}
+              onChange={handleChange}
+              InputLabelProps={{ shrink: true }}
+            />
+            <TextField
+              name="CheckOutDate"
+              label="Check-Out Date"
+              type="date"
+              value={selected?.CheckOutDate || ''}
+              onChange={handleChange}
+              InputLabelProps={{ shrink: true }}
+            />
+            <TextField
+              name="Room_Status"
+              label="Room Status"
+              value={selected?.Room_Status || ''}
+              onChange={handleChange}
+            />
             <FormControl fullWidth>
               <InputLabel>Package Type</InputLabel>
-              <Select name="PackageType" value={selected?.PackageType || ''} onChange={handleChange}>
-                {packageTypes.map((pkg) => <MenuItem key={pkg} value={pkg}>{pkg}</MenuItem>)}
+              <Select
+                name="PackageType"
+                value={selected?.PackageType || ''}
+                onChange={handleChange}
+              >
+                {packageTypes.map((pkg) => (
+                  <MenuItem key={pkg} value={pkg}>
+                    {pkg}
+                  </MenuItem>
+                ))}
               </Select>
             </FormControl>
-
-            <TextField name="Adults" label="Adults" type="number" value={selected?.Adults || 0} onChange={handleChange} />
-            <TextField name="Children" label="Children" type="number" value={selected?.Children || 0} onChange={handleChange} />
-
+            <TextField
+              name="Adults"
+              label="Adults"
+              type="number"
+              value={selected?.Adults || 0}
+              onChange={handleChange}
+            />
+            <TextField
+              name="Children"
+              label="Children"
+              type="number"
+              value={selected?.Children || 0}
+              onChange={handleChange}
+            />
             <FormControl fullWidth>
               <InputLabel>Room Number</InputLabel>
-              <Select name="RoomNumber" value={selected?.RoomNumber || ''} onChange={handleChange}>
-                {availableRooms.map((room) => <MenuItem key={room} value={room}>{room}</MenuItem>)}
+              <Select
+                name="RoomNumber"
+                value={selected?.RoomNumber || ''}
+                onChange={handleChange}
+              >
+                {availableRooms.map((room) => (
+                  <MenuItem key={room} value={room}>
+                    {room}
+                  </MenuItem>
+                ))}
               </Select>
             </FormControl>
-
-            <TextField name="SpecialRequests" label="Special Requests" value={selected?.SpecialRequests || ''} onChange={handleChange} />
-            <TextField name="ArrivalTime" label="Arrival Time" type="time" value={selected?.ArrivalTime || ''} onChange={handleChange} InputLabelProps={{ shrink: true }} />
-            <TextField name="DepartureTime" label="Departure Time" type="time" value={selected?.DepartureTime || ''} onChange={handleChange} InputLabelProps={{ shrink: true }} />
-
+            <TextField
+              name="SpecialRequests"
+              label="Special Requests"
+              value={selected?.SpecialRequests || ''}
+              onChange={handleChange}
+            />
+            <TextField
+              name="ArrivalTime"
+              label="Arrival Time"
+              type="time"
+              value={selected?.ArrivalTime || ''}
+              onChange={handleChange}
+              InputLabelProps={{ shrink: true }}
+            />
+            <TextField
+              name="DepartureTime"
+              label="Departure Time"
+              type="time"
+              value={selected?.DepartureTime || ''}
+              onChange={handleChange}
+              InputLabelProps={{ shrink: true }}
+            />
             <FormControl fullWidth>
               <InputLabel>Title</InputLabel>
-              <Select name="Title" value={selected?.Title || ''} onChange={handleChange}>
-                {titles.map((t) => <MenuItem key={t} value={t}>{t}</MenuItem>)}
+              <Select
+                name="Title"
+                value={selected?.Title || ''}
+                onChange={handleChange}
+              >
+                {titles.map((t) => (
+                  <MenuItem key={t} value={t}>
+                    {t}
+                  </MenuItem>
+                ))}
               </Select>
             </FormControl>
-
-            <TextField name="FirstName" label="First Name" value={selected?.FirstName || ''} onChange={handleChange} />
-            <TextField name="LastName" label="Last Name" value={selected?.LastName || ''} onChange={handleChange} />
-            <TextField name="Email" label="Email" value={selected?.Email || ''} onChange={handleChange} />
-            <TextField name="Phone" label="Phone" value={selected?.Phone || ''} onChange={handleChange} />
-            
+            <TextField
+              name="FirstName"
+              label="First Name"
+              value={selected?.FirstName || ''}
+              onChange={handleChange}
+            />
+            <TextField
+              name="LastName"
+              label="Last Name"
+              value={selected?.LastName || ''}
+              onChange={handleChange}
+            />
+            <TextField
+              name="Email"
+              label="Email"
+              value={selected?.Email || ''}
+              onChange={handleChange}
+            />
+            <TextField
+              name="Phone"
+              label="Phone"
+              value={selected?.Phone || ''}
+              onChange={handleChange}
+            />
             <FormControl fullWidth>
               <InputLabel>Country</InputLabel>
-              <Select name="Country" value={selected?.Country || ''} onChange={handleChange}>
-                {countries.map((c) => <MenuItem key={c} value={c}>{c}</MenuItem>)}
+              <Select
+                name="Country"
+                value={selected?.Country || ''}
+                onChange={handleChange}
+              >
+                {countries.map((c) => (
+                  <MenuItem key={c} value={c}>
+                    {c}
+                  </MenuItem>
+                ))}
               </Select>
             </FormControl>
-
-            <TextField name="NIC" label="NIC" value={selected?.NIC || ''} onChange={handleChange} />
-            <TextField name="PassportNumber" label="Passport Number" value={selected?.PassportNumber || ''} onChange={handleChange} />
+            <TextField
+              name="NIC"
+              label="NIC"
+              value={selected?.NIC || ''}
+              onChange={handleChange}
+            />
+            <TextField
+              name="PassportNumber"
+              label="Passport Number"
+              value={selected?.PassportNumber || ''}
+              onChange={handleChange}
+            />
           </Box>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setOpen(false)}>Cancel</Button>
-          <Button variant="contained" sx={{ backgroundColor: 'darkgreen' }} onClick={handleUpdate}>Update</Button>
+          <Button
+            variant="contained"
+            sx={{ backgroundColor: 'darkgreen' }}
+            onClick={handleUpdate}
+          >
+            Update
+          </Button>
         </DialogActions>
       </Dialog>
 
       {/* View Dialog */}
-      <Dialog open={viewOpen} onClose={() => setViewOpen(false)} maxWidth="sm" fullWidth>
+      <Dialog
+        open={viewOpen}
+        onClose={() => setViewOpen(false)}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: {
+            width: { xs: '90%', sm: '100%' },
+            m: { xs: 1, sm: 2 },
+          },
+        }}
+      >
         <DialogTitle>Reservation Details</DialogTitle>
         <DialogContent>
           <Box mb={2}>
-            <Typography variant="subtitle1" sx={{ fontWeight: 'bold', color: 'darkgreen' }}>Customer Details</Typography>
+            <Typography
+              variant="subtitle1"
+              sx={{ fontWeight: 'bold', color: 'darkgreen' }}
+            >
+              Customer Details
+            </Typography>
             <Divider sx={{ mb: 1 }} />
-            <Typography><strong>Name:</strong> {`${selected?.Title} ${selected?.FirstName} ${selected?.LastName}`}</Typography>
-            <Typography><strong>Email:</strong> {selected?.Email}</Typography>
-            <Typography><strong>Phone:</strong> {selected?.Phone}</Typography>
-            <Typography><strong>Country:</strong> {selected?.Country}</Typography>
-            <Typography><strong>NIC:</strong> {selected?.NIC}</Typography>
-            <Typography><strong>Passport Number:</strong> {selected?.PassportNumber}</Typography>
+            <Typography>
+              <strong>Name:</strong>{' '}
+              {`${selected?.Title} ${selected?.FirstName} ${selected?.LastName}`}
+            </Typography>
+            <Typography>
+              <strong>Email:</strong> {selected?.Email}
+            </Typography>
+            <Typography>
+              <strong>Phone:</strong> {selected?.Phone}
+            </Typography>
+            <Typography>
+              <strong>Country:</strong> {selected?.Country}
+            </Typography>
+            <Typography>
+              <strong>NIC:</strong> {selected?.NIC}
+            </Typography>
+            <Typography>
+              <strong>Passport Number:</strong> {selected?.PassportNumber}
+            </Typography>
           </Box>
-
           <Box>
-            <Typography variant="subtitle1" sx={{ fontWeight: 'bold', color: 'darkgreen' }}>Reservation Details</Typography>
+            <Typography
+              variant="subtitle1"
+              sx={{ fontWeight: 'bold', color: 'darkgreen' }}
+            >
+              Reservation Details
+            </Typography>
             <Divider sx={{ mb: 1 }} />
-            <Typography><strong>Reservation ID:</strong> {selected?.ReservationID}</Typography>
-            <Typography><strong>Room Number:</strong> {selected?.RoomNumber}</Typography>
-            <Typography><strong>Room Status:</strong> {selected?.Room_Status}</Typography>
-            <Typography><strong>Package Type:</strong> {selected?.PackageType}</Typography>
-            <Typography><strong>Check-In:</strong> {selected?.CheckInDate?.split('T')[0]}</Typography>
-            <Typography><strong>Check-Out:</strong> {selected?.CheckOutDate?.split('T')[0]}</Typography>
-            <Typography><strong>Adults:</strong> {selected?.Adults}</Typography>
-            <Typography><strong>Children:</strong> {selected?.Children}</Typography>
-            <Typography><strong>Arrival Time:</strong> {selected?.ArrivalTime}</Typography>
-            <Typography><strong>Departure Time:</strong> {selected?.DepartureTime}</Typography>
-            <Typography><strong>Special Requests:</strong> {selected?.SpecialRequests}</Typography>
+            <Typography>
+              <strong>Reservation ID:</strong> {selected?.ReservationID}
+            </Typography>
+            <Typography>
+              <strong>Room Number:</strong> {selected?.RoomNumber}
+            </Typography>
+            <Typography>
+              <strong>Room Status:</strong> {selected?.Room_Status}
+            </Typography>
+            <Typography>
+              <strong>Package Type:</strong> {selected?.PackageType}
+            </Typography>
+            <Typography>
+              <strong>Check-In:</strong> {selected?.CheckInDate?.split('T')[0]}
+            </Typography>
+            <Typography>
+              <strong>Check-Out:</strong> {selected?.CheckOutDate?.split('T')[0]}
+            </Typography>
+            <Typography>
+              <strong>Adults:</strong> {selected?.Adults}
+            </Typography>
+            <Typography>
+              <strong>Children:</strong> {selected?.Children}
+            </Typography>
+            <Typography>
+              <strong>Arrival Time:</strong> {selected?.ArrivalTime}
+            </Typography>
+            <Typography>
+              <strong>Departure Time:</strong> {selected?.DepartureTime}
+            </Typography>
+            <Typography>
+              <strong>Special Requests:</strong> {selected?.SpecialRequests}
+            </Typography>
           </Box>
         </DialogContent>
         <DialogActions>
