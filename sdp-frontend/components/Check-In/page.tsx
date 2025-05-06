@@ -21,6 +21,7 @@ import {
   FormControlLabel,
   Autocomplete
 } from '@mui/material';
+import axios from 'axios';
 import { reservationService } from '@/app/services/reservationService';
 import { Room } from '@/types/reservationtypes';
 
@@ -52,8 +53,10 @@ const CheckInComponent = () => {
     ArrivalTime: '14:00',
     DepartureTime: '12:00'
   });
+  const [exchangeRate, setExchangeRate] = useState<number | null>(null);
+  const [conversionError, setConversionError] = useState<string | null>(null);
 
-  // list of countries 
+  // List of countries 
   const countries = [
     'Afghanistan', 'Albania', 'Algeria', 'Andorra', 'Angola', 
     'Antigua and Barbuda', 'Argentina', 'Armenia', 'Australia', 'Austria', 
@@ -103,6 +106,31 @@ const CheckInComponent = () => {
     }
   }, [isSriLankan]);
 
+  // Fetch exchange rate when component mounts or when isSriLankan changes
+  useEffect(() => {
+    const fetchExchangeRate = async () => {
+      try {
+        const response = await axios.get('https://open.er-api.com/v6/latest/USD');
+        console.log('API Response:', response.data); // Log full response for debugging
+        const rate = response.data.rates?.LKR;
+        if (!rate) {
+          throw new Error('LKR rate not found in response');
+        }
+        setExchangeRate(rate);
+        setConversionError(null);
+      } catch (error: any) {
+        console.error('Error fetching exchange rate:', error);
+        console.error('Error response:', error.response?.data);
+        setConversionError(`Unable to fetch exchange rate: ${error.message}. Using fallback rate.`);
+        setExchangeRate(320); // Fallback rate (updated to 320 LKR/USD)
+      }
+    };
+
+    if (!isSriLankan) {
+      fetchExchangeRate();
+    }
+  }, [isSriLankan]);
+
   const handleSearchRooms = async () => {
     setLoading(true);
     try {
@@ -115,7 +143,7 @@ const CheckInComponent = () => {
     setLoading(false);
   };
 
-  // Function to calculate the total amount including package adjustment and taxes
+  // Function to calculate the total amount including package adjustment, taxes, and currency conversion
   const calculateTotalAmount = () => {
     if (!selectedRoom) return null;
 
@@ -137,16 +165,24 @@ const CheckInComponent = () => {
     // Calculate taxes
     const serviceCharge = adjustedRoomPrice * 0.10; // 10% service charge
     const vat = adjustedRoomPrice * 0.18; // 18% VAT
-    const totalPrice = adjustedRoomPrice + serviceCharge + vat;
+    let totalPrice = adjustedRoomPrice + serviceCharge + vat;
+
+    // Convert to LKR for foreign guests
+    let totalPriceLKR = totalPrice;
+    if (!isSriLankan && exchangeRate) {
+      totalPriceLKR = totalPrice * exchangeRate;
+    }
 
     return {
       baseRoomPrice,
       adjustedRoomPrice,
       serviceCharge,
       vat,
-      totalPrice,
+      totalPrice, // Original total in USD (for display to foreign guests)
+      totalPriceLKR, // Total in LKR (for backend)
       numberOfNights,
-      currency: isSriLankan ? 'LKR' : 'USD'
+      currency: isSriLankan ? 'LKR' : 'USD',
+      currencyLKR: 'LKR' // For display in invoice
     };
   };
 
@@ -163,7 +199,7 @@ const CheckInComponent = () => {
         {
           CheckInDate: checkIn,
           CheckOutDate: checkOut,
-          TotalAmount: invoice.totalPrice,
+          TotalAmount: invoice.totalPriceLKR, // Send LKR amount to backend
           PackageType: reservationData.PackageType,
           Adults: reservationData.Adults,
           Children: reservationData.Children,
@@ -183,6 +219,9 @@ const CheckInComponent = () => {
 
   return (
     <Box sx={{ maxWidth: 800, margin: 'auto', p: 3 }}>
+      <Typography variant="caption" sx={{ mb: 2, display: 'block', textAlign: 'center' }}>
+        Rates by <a href="https://www.exchangerate-api.com">ExchangeRate-API</a>
+      </Typography>
       <Stepper activeStep={activeStep} alternativeLabel sx={{ mb: 4 }}>
         {steps.map((label) => (
           <Step key={label}>
@@ -221,6 +260,9 @@ const CheckInComponent = () => {
               sx={{ color: '#1a472a' }}
             />
           </Box>
+          {conversionError && (
+            <Typography color="error">{conversionError}</Typography>
+          )}
           <Button 
             variant="contained" 
             onClick={handleSearchRooms}
@@ -312,9 +354,7 @@ const CheckInComponent = () => {
             label="NIC"
             value={customerData.NIC}
             onChange={(e) => setCustomerData({ ...customerData, NIC: e.target.value })}
-            
           />
-
           <TextField
             label="Passport Number"
             value={customerData.PassportNumber}
@@ -441,9 +481,18 @@ const CheckInComponent = () => {
                   <TableCell><strong>Total Price</strong></TableCell>
                   <TableCell align="right"><strong>{invoice.currency} {invoice.totalPrice.toFixed(2)}</strong></TableCell>
                 </TableRow>
+                {!isSriLankan && (
+                  <TableRow>
+                    <TableCell><strong>Total Price in LKR (Exchange Rate: 1 USD = {exchangeRate?.toFixed(2)} LKR)</strong></TableCell>
+                    <TableCell align="right"><strong>LKR {invoice.totalPriceLKR.toFixed(2)}</strong></TableCell>
+                  </TableRow>
+                )}
               </TableBody>
             </Table>
           </TableContainer>
+          {conversionError && (
+            <Typography color="error">{conversionError}</Typography>
+          )}
           <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 2 }}>
             <Button variant="outlined" onClick={() => setActiveStep(3)}>
               Back
@@ -451,7 +500,7 @@ const CheckInComponent = () => {
             <Button
               variant="contained"
               onClick={handleSubmitReservation}
-              disabled={loading}
+              disabled={loading || (!isSriLankan && !exchangeRate)}
               sx={{ backgroundColor: '#1a472a', color: 'white' }}
             >
               {loading ? <CircularProgress size={24} /> : 'Confirm Reservation'}
