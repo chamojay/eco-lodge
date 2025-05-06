@@ -1,148 +1,282 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { Button, IconButton, Box, TextField, Dialog, DialogActions, DialogContent, DialogTitle } from '@mui/material';
-import { Edit, Delete } from '@mui/icons-material';
-
 'use client';
 
+import React, { useEffect, useMemo, useState } from 'react';
+import { Button, IconButton, Box, TextField, Dialog, DialogActions, DialogContent, DialogTitle, Typography } from '@mui/material';
+import { Add, Edit, Delete } from '@mui/icons-material';
 import { MaterialReactTable, useMaterialReactTable, type MRT_ColumnDef } from 'material-react-table';
+import { extraChargesService, ExtraChargeType, ExtraChargeTypeCreate } from '@/app/services/extraChargesService';
+import exp from 'constants';
 
-// Example data type
-type ExtraCharge = {
-    id: number;
-    type: string;
-    amount: number;
-};
+const ExtraChargeTypes = () => {
+  const [data, setData] = useState<ExtraChargeType[]>([]);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingType, setEditingType] = useState<Partial<ExtraChargeType> | null>(null);
+  const [loading, setLoading] = useState(false);
 
-// Mock service to fetch extra charges
-const fetchExtraChargesService = async (): Promise<ExtraCharge[]> => {
-    // Replace with actual API call
-    return [
-        { id: 1, type: 'Cleaning Fee', amount: 50 },
-        { id: 2, type: 'Service Fee', amount: 30 },
-    ];
-};
+  // Fetch extra charge types
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        const types = await extraChargesService.getAllTypes();
+        setData(types);
+      } catch (error) {
+        console.error('Error fetching charge types:', error);
+        alert('Failed to load charge types');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
 
-const ExtraCharges = () => {
-    const [data, setData] = useState<ExtraCharge[]>([]);
-    const [isDialogOpen, setIsDialogOpen] = useState(false);
-    const [editingCharge, setEditingCharge] = useState<ExtraCharge | null>(null);
+  // Define table columns
+  const columns = useMemo<MRT_ColumnDef<ExtraChargeType>[]>(
+    () => [
+      {
+        accessorKey: 'TypeID',
+        header: 'Type ID',
+        size: 120,
+        minSize: 100,
+      },
+      {
+        accessorKey: 'Name',
+        header: 'Name',
+        size: 200,
+        minSize: 150,
+      },
+      {
+        accessorKey: 'DefaultAmount',
+        header: 'Default Amount (LKR)',
+        size: 150,
+        minSize: 120,
+        Cell: ({ cell }) => `${cell.getValue<number>().toLocaleString()}`,
+      },
+      {
+        id: 'actions',
+        header: 'Actions',
+        size: 150,
+        minSize: 120,
+        enableSorting: false,
+        enableColumnActions: false,
+        Cell: ({ row }) => (
+          <Box>
+            <IconButton
+              onClick={() => handleEdit(row.original)}
+              sx={{ color: '#1a472a' }}
+              disabled={loading}
+            >
+              <Edit />
+            </IconButton>
+            <IconButton
+              onClick={() => handleDelete(row.original.TypeID)}
+              sx={{ color: '#d32f2f' }}
+              disabled={loading}
+            >
+              <Delete />
+            </IconButton>
+          </Box>
+        ),
+      },
+    ],
+    [loading]
+  );
 
-    useEffect(() => {
-        const fetchData = async () => {
-            const charges = await fetchExtraChargesService();
-            setData(charges);
-        };
-        fetchData();
-    }, []);
+  const table = useMaterialReactTable({
+    columns,
+    data,
+    state: { isLoading: loading },
+    enableColumnVirtualization: true,
+    muiTableHeadCellProps: {
+      sx: {
+        backgroundColor: '#2e7d32',
+        color: 'white',
+        '& .MuiTableSortLabel-icon': {
+          color: 'white !important',
+        },
+        '& .MuiIconButton-root': {
+          color: 'white !important',
+        },
+      },
+    },
+    muiTableProps: {
+      sx: {
+        tableLayout: 'auto',
+        width: '100%',
+        '@media (max-width: 600px)': {
+          minWidth: 'auto',
+        },
+      },
+    },
+    muiTableBodyCellProps: {
+      sx: {
+        whiteSpace: 'normal',
+        wordBreak: 'break-word',
+      },
+    },
+  });
 
-    const columns = useMemo<MRT_ColumnDef<ExtraCharge>[]>(
-        () => [
-            {
-                accessorKey: 'type',
-                header: 'Type',
-                size: 200,
-            },
-            {
-                accessorKey: 'amount',
-                header: 'Amount',
-                size: 100,
-            },
-            {
-                id: 'actions',
-                header: 'Actions',
-                size: 150,
-                Cell: ({ row }) => (
-                    <Box>
-                        <IconButton
-                            onClick={() => handleEdit(row.original)}
-                            color="primary"
-                        >
-                            <Edit />
-                        </IconButton>
-                        <IconButton
-                            onClick={() => handleDelete(row.original.id)}
-                            color="error"
-                        >
-                            <Delete />
-                        </IconButton>
-                    </Box>
-                ),
-            },
-        ],
-        []
-    );
+  const handleEdit = (type: ExtraChargeType) => {
+    setEditingType(type);
+    setIsDialogOpen(true);
+  };
 
-    const table = useMaterialReactTable({
-        columns,
-        data,
+  const handleAdd = () => {
+    setEditingType({
+      Name: '',
+      DefaultAmount: 0,
     });
+    setIsDialogOpen(true);
+  };
 
-    const handleEdit = (charge: ExtraCharge) => {
-        setEditingCharge(charge);
-        setIsDialogOpen(true);
-    };
+  const handleDelete = async (id: number) => {
+    if (window.confirm('Are you sure you want to delete this charge type?')) {
+      setLoading(true);
+      try {
+        await extraChargesService.deleteType(id);
+        setData((prevData) => prevData.filter((type) => type.TypeID !== id));
+      } catch (error) {
+        console.error('Error deleting charge type:', error);
+        alert('Failed to delete charge type');
+      } finally {
+        setLoading(false);
+      }
+    }
+  };
 
-    const handleDelete = (id: number) => {
-        setData((prevData) => prevData.filter((charge) => charge.id !== id));
-    };
+  const handleDialogClose = () => {
+    setIsDialogOpen(false);
+    setEditingType(null);
+  };
 
-    const handleDialogClose = () => {
-        setIsDialogOpen(false);
-        setEditingCharge(null);
-    };
+  const handleSave = async () => {
+    if (!editingType) return;
 
-    const handleSave = () => {
-        if (editingCharge) {
-            setData((prevData) =>
-                prevData.map((charge) =>
-                    charge.id === editingCharge.id ? editingCharge : charge
-                )
-            );
-        }
-        handleDialogClose();
-    };
+    if (!editingType.Name || !editingType.DefaultAmount) {
+      alert('Name and Default Amount are required');
+      return;
+    }
 
-    return (
-        <Box>
-            <MaterialReactTable table={table} />
-            <Dialog open={isDialogOpen} onClose={handleDialogClose}>
-                <DialogTitle>Edit Extra Charge</DialogTitle>
-                <DialogContent>
-                    <TextField
-                        label="Type"
-                        fullWidth
-                        margin="normal"
-                        value={editingCharge?.type || ''}
-                        onChange={(e) =>
-                            setEditingCharge((prev) =>
-                                prev ? { ...prev, type: e.target.value } : null
-                            )
-                        }
-                    />
-                    <TextField
-                        label="Amount"
-                        type="number"
-                        fullWidth
-                        margin="normal"
-                        value={editingCharge?.amount || ''}
-                        onChange={(e) =>
-                            setEditingCharge((prev) =>
-                                prev ? { ...prev, amount: +e.target.value } : null
-                            )
-                        }
-                    />
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={handleDialogClose} color="secondary">
-                        Cancel
-                    </Button>
-                    <Button onClick={handleSave} color="primary">
-                        Save
-                    </Button>
-                </DialogActions>
-            </Dialog>
-        </Box>
-    );
+    setLoading(true);
+    try {
+      const typeData: ExtraChargeTypeCreate = {
+        Name: editingType.Name,
+        DefaultAmount: editingType.DefaultAmount,
+      };
+
+      if (editingType.TypeID) {
+        // Update existing type
+        await extraChargesService.updateType(editingType.TypeID, typeData);
+        setData((prevData) =>
+          prevData.map((type) =>
+            type.TypeID === editingType.TypeID ? { ...type, ...typeData } : type
+          )
+        );
+      } else {
+        // Add new type
+        const { id } = await extraChargesService.addType(typeData);
+        setData((prevData) => [...prevData, { ...typeData, TypeID: id }]);
+      }
+      handleDialogClose();
+    } catch (error) {
+      console.error('Error saving charge type:', error);
+      alert('Failed to save charge type');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Box sx={{ p: { xs: 2, sm: 3 } }}>
+      <Box
+        sx={{
+          display: 'flex',
+          flexDirection: { xs: 'column', sm: 'row' },
+          justifyContent: 'space-between',
+          alignItems: { xs: 'stretch', sm: 'center' },
+          mb: 2,
+          gap: { xs: 2, sm: 0 },
+        }}
+      >
+        <Typography variant="h5" sx={{ color: 'darkgreen' }}>
+          Extra Charge Types Management
+        </Typography>
+        <Button
+          variant="contained"
+          startIcon={<Add />}
+          onClick={handleAdd}
+          sx={{
+            backgroundColor: '#1a472a',
+            '&:hover': { backgroundColor: '#2e7d32' },
+            minWidth: { xs: '100%', sm: 'auto' },
+          }}
+          disabled={loading}
+        >
+          Add Type
+        </Button>
+      </Box>
+
+      <Box sx={{ overflowX: 'auto' }}>
+        <MaterialReactTable table={table} />
+      </Box>
+
+      <Dialog
+        open={isDialogOpen}
+        onClose={handleDialogClose}
+        fullWidth
+        maxWidth="sm"
+        PaperProps={{
+          sx: {
+            width: { xs: '90%', sm: '100%' },
+            m: { xs: 1, sm: 2 },
+          },
+        }}
+      >
+        <DialogTitle>{editingType?.TypeID ? 'Edit Charge Type' : 'Add Charge Type'}</DialogTitle>
+        <DialogContent>
+          <TextField
+            label="Name"
+            fullWidth
+            margin="normal"
+            value={editingType?.Name || ''}
+            onChange={(e) =>
+              setEditingType((prev) =>
+                prev ? { ...prev, Name: e.target.value } : null
+              )
+            }
+            required
+            disabled={loading}
+          />
+          <TextField
+            label="Default Amount (LKR)"
+            type="number"
+            fullWidth
+            margin="normal"
+            value={editingType?.DefaultAmount || ''}
+            onChange={(e) =>
+              setEditingType((prev) =>
+                prev ? { ...prev, DefaultAmount: +e.target.value } : null
+              )
+            }
+            required
+            disabled={loading}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleDialogClose} color="error" disabled={loading}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleSave}
+            sx={{ backgroundColor: '#1a472a', color: 'white', '&:hover': { backgroundColor: '#2e7d32' } }}
+            disabled={loading}
+          >
+            Save
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Box>
+  );
 };
 
-export default ExtraCharges;
+export default ExtraChargeTypes;

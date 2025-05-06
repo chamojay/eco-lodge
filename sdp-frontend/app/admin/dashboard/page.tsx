@@ -8,6 +8,7 @@ import {
   Menu as MenuIcon, ChevronLeft, Dashboard, People, CalendarToday, Hotel, Restaurant, Assessment, Logout
 } from '@mui/icons-material';
 import AdminRooms from '@/components/Admin-Rooms/page';
+import AdminExtraCharges from '@/components/Admin-Extracharges/page';
 
 type MenuItemType = {
   id: string;
@@ -55,6 +56,7 @@ const AdminDashboard: React.FC = () => {
     { id: 'users', label: 'User Management', icon: <People /> },
     { id: 'rooms', label: 'Room Management', icon: <Hotel /> },
     { id: 'reservations', label: 'Reservations', icon: <CalendarToday /> },
+    { id: 'extra-charges', label: 'Extra Charges', icon: <Assessment /> },
     { id: 'restaurant', label: 'Restaurant Orders', icon: <Restaurant /> },
     { id: 'reports', label: 'Reports', icon: <Assessment /> },
   ];
@@ -63,6 +65,8 @@ const AdminDashboard: React.FC = () => {
     switch (selectedMenu) {
       case 'rooms':
         return <AdminRooms />;
+      case'extra-charges':
+        return <AdminExtraCharges />;
       default:
         return (
           <Box sx={{ p: 3 }}>
@@ -71,6 +75,7 @@ const AdminDashboard: React.FC = () => {
             </Typography>
           </Box>
         );
+      
     }
   };
 
