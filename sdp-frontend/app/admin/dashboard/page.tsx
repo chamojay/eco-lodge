@@ -9,6 +9,7 @@ import {
 } from '@mui/icons-material';
 import AdminRooms from '@/components/Admin-Rooms/page';
 import AdminExtraCharges from '@/components/Admin-Extracharges/page';
+import AdminActivity from '@/components/Admin-Activity/page';
 
 type MenuItemType = {
   id: string;
@@ -57,6 +58,7 @@ const AdminDashboard: React.FC = () => {
     { id: 'rooms', label: 'Room Management', icon: <Hotel /> },
     { id: 'reservations', label: 'Reservations', icon: <CalendarToday /> },
     { id: 'extra-charges', label: 'Extra Charges', icon: <Assessment /> },
+    { id: 'activities', label: 'Activities', icon: <Assessment /> },
     { id: 'restaurant', label: 'Restaurant Orders', icon: <Restaurant /> },
     { id: 'reports', label: 'Reports', icon: <Assessment /> },
   ];
@@ -67,6 +69,8 @@ const AdminDashboard: React.FC = () => {
         return <AdminRooms />;
       case'extra-charges':
         return <AdminExtraCharges />;
+      case'activities':
+        return <AdminActivity />;
       default:
         return (
           <Box sx={{ p: 3 }}>

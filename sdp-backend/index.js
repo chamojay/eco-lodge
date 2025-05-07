@@ -6,6 +6,7 @@ const reservationRoutes = require('./routes/reservationRoutes');
 const reservationTableRoutes = require('./routes/reservationtableRoutes');
 const customerTableRoutes = require('./routes/customertableRoutes');
 const extraChargeRoutes = require('./routes/extraChargesRoutes');
+const activityRoutes = require('./routes/activityRoutes');
 const app = express();
 const port = 5000;
 
@@ -21,6 +22,7 @@ app.use('/api/reservations', reservationRoutes);
 app.use('/api/reservationinfo', reservationTableRoutes);
 app.use('/api/customerinfo', customerTableRoutes);
 app.use('/api/extraCharges', extraChargeRoutes);
+app.use('/api/activities', activityRoutes);
 
 // Global error handler
 app.use((err, req, res, next) => {
