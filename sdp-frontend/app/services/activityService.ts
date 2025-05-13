@@ -2,35 +2,48 @@ import axios from 'axios';
 
 const API_URL = 'http://localhost:5000/api/activities';
 
-// Types
+// Types to match backend exactly
 export interface Activity {
   ActivityID: number;
-  Name: string;
-  Description: string | null;
-  LocalPrice: number;
-  ForeignPrice: number;
+  name: string;
+  description: string | null;
+  localPrice: number;
+  foreignPrice: number;
 }
 
 export interface ReservationActivity {
   ReservationActivityID: number;
-  ReservationID: number;
-  ActivityID: number;
-  ScheduledDate: string;
-  Amount: number;
-  Participants: number;
-  Name?: string;
-  Description?: string | null;
-  LocalPrice?: number;
-  ForeignPrice?: number;
+  reservationId: number;
+  activityId: number;
+  scheduledDate: string;
+  amount: number;
+  participants: number;
+  name?: string;
+  description?: string | null;
 }
 
-export type ActivityCreate = Omit<Activity, 'ActivityID'>;
-export type ReservationActivityCreate = Omit<ReservationActivity, 'ReservationActivityID' | 'Name' | 'Description' | 'LocalPrice' | 'ForeignPrice'>;
-export type ReservationActivityUpdate = Partial<ReservationActivityCreate>;
+export interface ActivityCreate {
+  name: string;
+  description: string | null;
+  localPrice: number;
+  foreignPrice: number;
+}
+
+export interface ReservationActivityCreate {
+  reservationId: number;
+  activityId: number;
+  scheduledDate: string;
+  participants: number;
+}
+
+export interface ReservationActivityUpdate {
+  scheduledDate: string;
+  amount: number;
+  participants: number;
+}
 
 // Service
 export const activityService = {
-  // ===== Activities CRUD =====
   getAllActivities: async (): Promise<Activity[]> => {
     try {
       const response = await axios.get<Activity[]>(`${API_URL}`);
@@ -51,22 +64,26 @@ export const activityService = {
 
   addActivity: async (activityData: ActivityCreate): Promise<{ id: number }> => {
     try {
-      if (!activityData.Name || !activityData.LocalPrice || !activityData.ForeignPrice) {
-        throw new Error('Name, LocalPrice, and ForeignPrice are required');
-      }
-      const response = await axios.post<{ activity: Activity }>(`${API_URL}`, activityData);
-      return { id: response.data.activity.ActivityID };
+      const response = await axios.post<Activity>(`${API_URL}`, {
+        name: activityData.name,
+        description: activityData.description,
+        localPrice: activityData.localPrice,
+        foreignPrice: activityData.foreignPrice
+      });
+      return { id: response.data.ActivityID };
     } catch (error) {
       throw new Error(`Failed to add activity: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   },
 
-  updateActivity: async (id: number, updatedData: Partial<ActivityCreate>): Promise<{ success: boolean }> => {
+  updateActivity: async (id: number, updatedData: ActivityCreate): Promise<{ success: boolean }> => {
     try {
-      if (!updatedData.Name || !updatedData.LocalPrice || !updatedData.ForeignPrice) {
-        throw new Error('Name, LocalPrice, and ForeignPrice are required');
-      }
-      const response = await axios.put<{ activity: Activity }>(`${API_URL}/${id}`, updatedData);
+      await axios.put(`${API_URL}/${id}`, {
+        name: updatedData.name,
+        description: updatedData.description,
+        localPrice: updatedData.localPrice,
+        foreignPrice: updatedData.foreignPrice
+      });
       return { success: true };
     } catch (error) {
       throw new Error(`Failed to update activity: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -82,7 +99,6 @@ export const activityService = {
     }
   },
 
-  // ===== Reservation Activities CRUD =====
   getActivitiesForReservation: async (reservationId: number): Promise<ReservationActivity[]> => {
     try {
       const response = await axios.get<ReservationActivity[]>(`${API_URL}/reservation/${reservationId}`);
@@ -92,30 +108,27 @@ export const activityService = {
     }
   },
 
-  addActivityToReservation: async (activityData: ReservationActivityCreate): Promise<{ id: number }> => {
+  addActivityToReservation: async (data: ReservationActivityCreate): Promise<{ id: number }> => {
     try {
-      if (!activityData.ReservationID || !activityData.ActivityID || !activityData.ScheduledDate || !activityData.Participants) {
-        throw new Error('ReservationID, ActivityID, ScheduledDate, and Participants are required');
-      }
-      if (!Number.isInteger(activityData.Participants) || activityData.Participants < 1) {
-        throw new Error('Participants must be a positive integer');
-      }
-      const response = await axios.post<{ reservationActivity: ReservationActivity }>(`${API_URL}/reservation`, activityData);
-      return { id: response.data.reservationActivity.ReservationActivityID };
+      const response = await axios.post<ReservationActivity>(`${API_URL}/reservation`, {
+        reservationId: data.reservationId,
+        activityId: data.activityId,
+        scheduledDate: data.scheduledDate,
+        participants: data.participants
+      });
+      return { id: response.data.ReservationActivityID };
     } catch (error) {
       throw new Error(`Failed to add reservation activity: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   },
 
-  updateReservationActivity: async (id: number, updatedData: ReservationActivityUpdate): Promise<{ success: boolean }> => {
+  updateReservationActivity: async (id: number, data: ReservationActivityUpdate): Promise<{ success: boolean }> => {
     try {
-      if (!updatedData.ScheduledDate || !updatedData.Amount || !updatedData.Participants) {
-        throw new Error('ScheduledDate, Amount, and Participants are required');
-      }
-      if (!Number.isInteger(updatedData.Participants) || updatedData.Participants < 1) {
-        throw new Error('Participants must be a positive integer');
-      }
-      const response = await axios.put<{ updatedActivity: ReservationActivity }>(`${API_URL}/reservation/${id}`, updatedData);
+      await axios.put(`${API_URL}/reservation/${id}`, {
+        scheduledDate: data.scheduledDate,
+        amount: data.amount,
+        participants: data.participants
+      });
       return { success: true };
     } catch (error) {
       throw new Error(`Failed to update reservation activity: ${error instanceof Error ? error.message : 'Unknown error'}`);

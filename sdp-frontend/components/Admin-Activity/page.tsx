@@ -4,8 +4,8 @@ import { activityService, Activity, ReservationActivity, ActivityCreate } from '
 interface FormData {
   name: string;
   description: string;
-  localPrice: string;
-  foreignPrice: string;
+  localPrice: string | number;
+  foreignPrice: string | number;
 }
 
 const AdminActivity: React.FC = () => {
@@ -41,17 +41,17 @@ const AdminActivity: React.FC = () => {
     e.preventDefault();
     setError('');
     try {
-      const input: ActivityCreate = {
-        Name: formData.name,
-        Description: formData.description || null,
-        LocalPrice: parseFloat(formData.localPrice),
-        ForeignPrice: parseFloat(formData.foreignPrice),
+      const activityData: ActivityCreate = {
+        name: formData.name.trim(),
+        description: formData.description.trim() || null,
+        localPrice: Number(formData.localPrice),
+        foreignPrice: Number(formData.foreignPrice)
       };
       if (editingId) {
-        await activityService.updateActivity(editingId, input);
+        await activityService.updateActivity(editingId, activityData);
         alert('Activity updated successfully');
       } else {
-        await activityService.addActivity(input);
+        await activityService.addActivity(activityData);
         alert('Activity created successfully');
       }
       setFormData({ name: '', description: '', localPrice: '', foreignPrice: '' });

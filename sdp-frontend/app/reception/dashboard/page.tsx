@@ -37,6 +37,7 @@ import {
 } from '@mui/icons-material';
 import { styled } from '@mui/material/styles';
 import ReservationComponent from '@/components/Reservations-R/page';
+import ReceptionActivity from '@/components/Reception-Activity/page';
 
 const drawerWidth = 240;
 const collapsedDrawerWidth = 56;
@@ -100,13 +101,7 @@ const ReceptionDashboard: React.FC = () => {
       case 'reservations':
         return <ReservationComponent />;
       case 'activities':
-        return (
-          <Box sx={{ p: 3 }}>
-            <Typography variant="h4" gutterBottom color="primary">
-              Activities
-            </Typography>
-          </Box>
-        );
+        return <ReceptionActivity />;
       case 'calendar':
         return (
           <Box sx={{ p: 3 }}>
