@@ -25,8 +25,24 @@ import axios from 'axios';
 import { reservationService } from '@/app/services/reservationService';
 import { Room } from '@/types/reservationtypes';
 
-// Updated steps array to include 'Review Invoice' as the 5th step
 const steps = ['Select Dates', 'Choose Room', 'Guest Details', 'Reservation Details', 'Review Invoice'];
+
+const formatDate = (date: Date): string => {
+  return date.toISOString().split('T')[0];
+};
+
+const getMinCheckInDate = (): string => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return formatDate(today);
+};
+
+const getMinCheckOutDate = (checkInDate: string): string => {
+  if (!checkInDate) return '';
+  const nextDay = new Date(checkInDate);
+  nextDay.setDate(nextDay.getDate() + 1);
+  return formatDate(nextDay);
+};
 
 const CheckInComponent = () => {
   const [activeStep, setActiveStep] = useState(0);
@@ -35,7 +51,7 @@ const CheckInComponent = () => {
   const [rooms, setRooms] = useState<Room[]>([]);
   const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
   const [loading, setLoading] = useState(false);
-  const [isSriLankan, setIsSriLankan] = useState(true); // Default to true
+  const [isSriLankan, setIsSriLankan] = useState(true);
   const [customerData, setCustomerData] = useState({
     FirstName: '',
     LastName: '',
@@ -55,8 +71,8 @@ const CheckInComponent = () => {
   });
   const [exchangeRate, setExchangeRate] = useState<number | null>(null);
   const [conversionError, setConversionError] = useState<string | null>(null);
+  const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
-  // List of countries 
   const countries = [
     'Afghanistan', 'Albania', 'Algeria', 'Andorra', 'Angola', 
     'Antigua and Barbuda', 'Argentina', 'Armenia', 'Australia', 'Austria', 
@@ -99,20 +115,22 @@ const CheckInComponent = () => {
     'Venezuela', 'Vietnam', 'Yemen', 'Zambia', 'Zimbabwe'
   ];
 
-  // Country is set to "Sri Lanka" when isSriLankan is true
+  // Set country to Sri Lanka for locals
   useEffect(() => {
     if (isSriLankan) {
-      setCustomerData({ ...customerData, Country: 'Sri Lanka' });
+      setCustomerData({ ...customerData, Country: 'Sri Lanka', PassportNumber: '' });
+    } else {
+      setCustomerData({ ...customerData, Country: '', NIC: '' });
     }
   }, [isSriLankan]);
 
-  // Fetch exchange rate when component mounts or when isSriLankan changes
+  // Fetch exchange rate
   useEffect(() => {
     const fetchExchangeRate = async () => {
       try {
         const response = await axios.get('https://open.er-api.com/v6/latest/USD');
-        console.log('API Response:', response.data); // Log full response for debugging
-        const rate = (response.data as { rates: { LKR: number } }).rates?.LKR;
+        const data = response.data as { rates: { [key: string]: number } };
+        const rate = data.rates?.LKR;
         if (!rate) {
           throw new Error('LKR rate not found in response');
         }
@@ -120,9 +138,8 @@ const CheckInComponent = () => {
         setConversionError(null);
       } catch (error: any) {
         console.error('Error fetching exchange rate:', error);
-        console.error('Error response:', error.response?.data);
         setConversionError(`Unable to fetch exchange rate: ${error.message}. Using fallback rate.`);
-        setExchangeRate(320); // Fallback rate (updated to 320 LKR/USD)
+        setExchangeRate(320);
       }
     };
 
@@ -131,7 +148,112 @@ const CheckInComponent = () => {
     }
   }, [isSriLankan]);
 
+  // Validation functions
+  const validateStep0 = () => {
+    const newErrors: { [key: string]: string } = {};
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const checkInDate = new Date(checkIn);
+    const checkOutDate = new Date(checkOut);
+
+    if (!checkIn) {
+      newErrors.checkIn = 'Check-in date is required';
+    } else if (checkInDate < today) {
+      newErrors.checkIn = 'Check-in date cannot be in the past';
+    }
+
+    if (!checkOut) {
+      newErrors.checkOut = 'Check-out date is required';
+    } else if (checkOutDate <= checkInDate) {
+      newErrors.checkOut = 'Check-out date must be after check-in date';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const validateStep2 = () => {
+    const newErrors: { [key: string]: string } = {};
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const phoneRegex = /^\+?[\d\s-]{10,10}$/;
+    const nicRegex = /^(?:\d{9}[vV]|\d{12})$/;
+    const passportRegex = /^[A-Z0-9]{6,9}$/;
+
+    if (!customerData.FirstName.trim()) {
+      newErrors.FirstName = 'First name is required';
+    } else if (customerData.FirstName.length < 2) {
+      newErrors.FirstName = 'First name must be at least 2 characters';
+    }
+
+    if (!customerData.LastName.trim()) {
+      newErrors.LastName = 'Last name is required';
+    } else if (customerData.LastName.length < 2) {
+      newErrors.LastName = 'Last name must be at least 2 characters';
+    }
+
+    if (!customerData.Email.trim()) {
+      newErrors.Email = 'Email is required';
+    } else if (!emailRegex.test(customerData.Email)) {
+      newErrors.Email = 'Invalid email format';
+    }
+
+    if (!customerData.Phone.trim()) {
+      newErrors.Phone = 'Phone number is required';
+    } else if (customerData.Phone.replace(/\D/g, '').length > 10) {
+      newErrors.Phone = 'Phone number cannot exceed 10 digits';
+    } else if (!phoneRegex.test(customerData.Phone)) {
+      newErrors.Phone = 'Invalid phone number format';
+    }
+
+    if (!isSriLankan && !customerData.Country) {
+      newErrors.Country = 'Country is required';
+    }
+
+    if (isSriLankan && !customerData.NIC.trim()) {
+      newErrors.NIC = 'NIC is required';
+    } else if (isSriLankan && !nicRegex.test(customerData.NIC)) {
+      newErrors.NIC = 'Invalid NIC format (9 digits + V or 12 digits)';
+    }
+
+    if (!isSriLankan && !customerData.PassportNumber.trim()) {
+      newErrors.PassportNumber = 'Passport number is required';
+    } else if (!isSriLankan && !passportRegex.test(customerData.PassportNumber)) {
+      newErrors.PassportNumber = 'Invalid passport number format (6-9 alphanumeric characters)';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const validateStep3 = () => {
+    const newErrors: { [key: string]: string } = {};
+    
+    if (reservationData.Adults < 1) {
+      newErrors.Adults = 'At least one adult is required';
+    }
+
+    if (reservationData.Children < 0) {
+      newErrors.Children = 'Children cannot be negative';
+    }
+
+    if (selectedRoom && (reservationData.Adults + reservationData.Children) > selectedRoom.MaxPeople) {
+      newErrors.Adults = `Total guests (adults + children) cannot exceed ${selectedRoom.MaxPeople}`;
+    }
+
+    if (!reservationData.ArrivalTime) {
+      newErrors.ArrivalTime = 'Arrival time is required';
+    }
+
+    if (!reservationData.DepartureTime) {
+      newErrors.DepartureTime = 'Departure time is required';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
   const handleSearchRooms = async () => {
+    if (!validateStep0()) return;
     setLoading(true);
     try {
       const availableRooms = await reservationService.checkAvailability(checkIn, checkOut);
@@ -143,7 +265,6 @@ const CheckInComponent = () => {
     setLoading(false);
   };
 
-  // Function to calculate the total amount including package adjustment, taxes, and currency conversion
   const calculateTotalAmount = () => {
     if (!selectedRoom) return null;
 
@@ -153,7 +274,6 @@ const CheckInComponent = () => {
     const pricePerNight = isSriLankan ? selectedRoom.LocalPrice : selectedRoom.ForeignPrice;
     const baseRoomPrice = pricePerNight * numberOfNights;
 
-    // Adjust price based on package type
     let packageMultiplier = 1;
     if (reservationData.PackageType === 'HalfBoard') {
       packageMultiplier = 1.3;
@@ -162,12 +282,10 @@ const CheckInComponent = () => {
     }
     const adjustedRoomPrice = baseRoomPrice * packageMultiplier;
 
-    // Calculate taxes
-    const serviceCharge = adjustedRoomPrice * 0.10; // 10% service charge
-    const vat = adjustedRoomPrice * 0.18; // 18% VAT
+    const serviceCharge = adjustedRoomPrice * 0.10;
+    const vat = adjustedRoomPrice * 0.18;
     let totalPrice = adjustedRoomPrice + serviceCharge + vat;
 
-    // Convert to LKR for foreign guests
     let totalPriceLKR = totalPrice;
     if (!isSriLankan && exchangeRate) {
       totalPriceLKR = totalPrice * exchangeRate;
@@ -178,11 +296,11 @@ const CheckInComponent = () => {
       adjustedRoomPrice,
       serviceCharge,
       vat,
-      totalPrice, // Original total in USD (for display to foreign guests)
-      totalPriceLKR, // Total in LKR (for backend)
+      totalPrice,
+      totalPriceLKR,
       numberOfNights,
       currency: isSriLankan ? 'LKR' : 'USD',
-      currencyLKR: 'LKR' // For display in invoice
+      currencyLKR: 'LKR'
     };
   };
 
@@ -199,7 +317,7 @@ const CheckInComponent = () => {
         {
           CheckInDate: checkIn,
           CheckOutDate: checkOut,
-          TotalAmount: invoice.totalPriceLKR, // Send LKR amount to backend
+          TotalAmount: invoice.totalPriceLKR,
           PackageType: reservationData.PackageType,
           Adults: reservationData.Adults,
           Children: reservationData.Children,
@@ -208,7 +326,7 @@ const CheckInComponent = () => {
           DepartureTime: reservationData.DepartureTime
         }
       );
-      setActiveStep(5); // Move to success state after submission
+      setActiveStep(5);
     } catch (error) {
       console.error('Error creating reservation:', error);
     }
@@ -216,6 +334,13 @@ const CheckInComponent = () => {
   };
 
   const invoice = activeStep === 4 ? calculateTotalAmount() : null;
+
+  // Get today's date in YYYY-MM-DD format
+  const today = new Date().toISOString().split('T')[0];
+  // Get tomorrow's date
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const minCheckOutDate = checkIn ? new Date(new Date(checkIn).getTime() + 24 * 60 * 60 * 1000).toISOString().split('T')[0] : today;
 
   return (
     <Box sx={{ maxWidth: 800, margin: 'auto', p: 3 }}>
@@ -240,16 +365,40 @@ const CheckInComponent = () => {
             label="Check-in Date"
             type="date"
             InputLabelProps={{ shrink: true }}
+            InputProps={{ 
+              inputProps: { 
+                min: getMinCheckInDate(),
+                max: '2025-12-31' // Set a reasonable maximum date
+              } 
+            }}
             value={checkIn}
-            onChange={(e) => setCheckIn(e.target.value)}
+            onChange={(e) => {
+              const newCheckIn = e.target.value;
+              setCheckIn(newCheckIn);
+              // If check-out date is before new check-in date + 1 day, update it
+              if (checkOut && new Date(checkOut) <= new Date(newCheckIn)) {
+                setCheckOut(getMinCheckOutDate(newCheckIn));
+              }
+            }}
+            error={!!errors.checkIn}
+            helperText={errors.checkIn}
             sx={{ backgroundColor: '#f9f9f9', borderRadius: 1 }}
           />
           <TextField
             label="Check-out Date"
             type="date"
             InputLabelProps={{ shrink: true }}
+            InputProps={{ 
+              inputProps: { 
+                min: checkIn ? getMinCheckOutDate(checkIn) : getMinCheckInDate(),
+                max: '2025-12-31' // Set a reasonable maximum date
+              } 
+            }}
             value={checkOut}
             onChange={(e) => setCheckOut(e.target.value)}
+            error={!!errors.checkOut}
+            helperText={errors.checkOut}
+            disabled={!checkIn} // Disable until check-in is selected
             sx={{ backgroundColor: '#f9f9f9', borderRadius: 1 }}
           />
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: '#1a472a' }}>
@@ -291,6 +440,7 @@ const CheckInComponent = () => {
                 >
                   <Typography variant="subtitle1">Room {room.RoomNumber}</Typography>
                   <Typography>Type: {room.Type}</Typography>
+                  <Typography>Max Guests: {room.MaxPeople}</Typography>
                   <Typography>
                     Price: {isSriLankan ? `LKR ${room.LocalPrice}` : `USD ${room.ForeignPrice}`}/night
                   </Typography>
@@ -322,22 +472,30 @@ const CheckInComponent = () => {
             label="First Name"
             value={customerData.FirstName}
             onChange={(e) => setCustomerData({ ...customerData, FirstName: e.target.value })}
+            error={!!errors.FirstName}
+            helperText={errors.FirstName}
           />
           <TextField
             label="Last Name"
             value={customerData.LastName}
             onChange={(e) => setCustomerData({ ...customerData, LastName: e.target.value })}
+            error={!!errors.LastName}
+            helperText={errors.LastName}
           />
           <TextField
             label="Email"
             type="email"
             value={customerData.Email}
             onChange={(e) => setCustomerData({ ...customerData, Email: e.target.value })}
+            error={!!errors.Email}
+            helperText={errors.Email}
           />
           <TextField
             label="Phone"
             value={customerData.Phone}
             onChange={(e) => setCustomerData({ ...customerData, Phone: e.target.value })}
+            error={!!errors.Phone}
+            helperText={errors.Phone}
           />
           <Autocomplete
             options={countries}
@@ -348,25 +506,43 @@ const CheckInComponent = () => {
               }
             }}
             disabled={isSriLankan}
-            renderInput={(params) => <TextField {...params} label="Country" />}
+            renderInput={(params) => (
+              <TextField 
+                {...params} 
+                label="Country" 
+                error={!!errors.Country}
+                helperText={errors.Country}
+              />
+            )}
           />
-          <TextField
-            label="NIC"
-            value={customerData.NIC}
-            onChange={(e) => setCustomerData({ ...customerData, NIC: e.target.value })}
-          />
-          <TextField
-            label="Passport Number"
-            value={customerData.PassportNumber}
-            onChange={(e) => setCustomerData({ ...customerData, PassportNumber: e.target.value })}
-          />
+          {isSriLankan ? (
+            <TextField
+              label="NIC"
+              value={customerData.NIC}
+              onChange={(e) => setCustomerData({ ...customerData, NIC: e.target.value })}
+              error={!!errors.NIC}
+              helperText={errors.NIC}
+            />
+          ) : (
+            <TextField
+              label="Passport Number"
+              value={customerData.PassportNumber}
+              onChange={(e) => setCustomerData({ ...customerData, PassportNumber: e.target.value })}
+              error={!!errors.PassportNumber}
+              helperText={errors.PassportNumber}
+            />
+          )}
           <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 2 }}>
             <Button variant="outlined" onClick={() => setActiveStep(1)}>
               Back
             </Button>
             <Button
               variant="contained"
-              onClick={() => setActiveStep(3)}
+              onClick={() => {
+                if (validateStep2()) {
+                  setActiveStep(3);
+                }
+              }}
               sx={{ backgroundColor: '#1a472a', color: 'white' }}
             >
               Next
@@ -399,6 +575,8 @@ const CheckInComponent = () => {
               Adults: e.target.value ? parseInt(e.target.value) : 1
             })}
             inputProps={{ min: 1 }}
+            error={!!errors.Adults}
+            helperText={errors.Adults}
           />
           <TextField
             label="Children"
@@ -409,6 +587,8 @@ const CheckInComponent = () => {
               Children: e.target.value ? parseInt(e.target.value) : 0
             })}
             inputProps={{ min: 0 }}
+            error={!!errors.Children}
+            helperText={errors.Children}
           />
           <TextField
             label="Special Requests"
@@ -423,6 +603,8 @@ const CheckInComponent = () => {
             value={reservationData.ArrivalTime}
             onChange={(e) => setReservationData({ ...reservationData, ArrivalTime: e.target.value })}
             InputLabelProps={{ shrink: true }}
+            error={!!errors.ArrivalTime}
+            helperText={errors.ArrivalTime}
           />
           <TextField
             label="Departure Time"
@@ -430,6 +612,8 @@ const CheckInComponent = () => {
             value={reservationData.DepartureTime}
             onChange={(e) => setReservationData({ ...reservationData, DepartureTime: e.target.value })}
             InputLabelProps={{ shrink: true }}
+            error={!!errors.DepartureTime}
+            helperText={errors.DepartureTime}
           />
           <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 2 }}>
             <Button variant="outlined" onClick={() => setActiveStep(2)}>
@@ -437,7 +621,11 @@ const CheckInComponent = () => {
             </Button>
             <Button
               variant="contained"
-              onClick={() => setActiveStep(4)}
+              onClick={() => {
+                if (validateStep3()) {
+                  setActiveStep(4);
+                }
+              }}
               sx={{ backgroundColor: '#1a472a', color: 'white' }}
             >
               Next
