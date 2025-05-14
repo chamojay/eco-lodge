@@ -59,7 +59,7 @@ const AdminDashboard: React.FC = () => {
     { id: 'reservations', label: 'Reservations', icon: <CalendarToday /> },
     { id: 'extra-charges', label: 'Extra Charges', icon: <Assessment /> },
     { id: 'activities', label: 'Activities', icon: <Assessment /> },
-    { id: 'restaurant', label: 'Restaurant Orders', icon: <Restaurant /> },
+   
     { id: 'reports', label: 'Reports', icon: <Assessment /> },
   ];
 
