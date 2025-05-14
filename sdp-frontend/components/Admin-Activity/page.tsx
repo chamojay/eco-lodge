@@ -1,4 +1,20 @@
 import React, { useState, useEffect } from 'react';
+import {
+  Box,
+  Button,
+  TextField,
+  Typography,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
+  IconButton,
+  Alert,
+} from '@mui/material';
+import { Edit as EditIcon, Delete as DeleteIcon } from '@mui/icons-material';
 import { activityService, Activity, ReservationActivity, ActivityCreate } from '@/app/services/activityService';
 
 interface FormData {
@@ -30,13 +46,11 @@ const AdminActivity: React.FC = () => {
     }
   };
 
-  // Handle form input changes
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
   };
 
-  // Create or update activity
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -45,7 +59,7 @@ const AdminActivity: React.FC = () => {
         name: formData.name.trim(),
         description: formData.description.trim() || null,
         localPrice: Number(formData.localPrice),
-        foreignPrice: Number(formData.foreignPrice)
+        foreignPrice: Number(formData.foreignPrice),
       };
       if (editingId) {
         await activityService.updateActivity(editingId, activityData);
@@ -62,7 +76,6 @@ const AdminActivity: React.FC = () => {
     }
   };
 
-  // Edit activity
   const handleEdit = (activity: Activity) => {
     setFormData({
       name: activity.Name,
@@ -73,7 +86,6 @@ const AdminActivity: React.FC = () => {
     setEditingId(activity.ActivityID);
   };
 
-  // Delete activity
   const handleDelete = async (id: number) => {
     if (window.confirm('Are you sure you want to delete this activity?')) {
       try {
@@ -86,7 +98,6 @@ const AdminActivity: React.FC = () => {
     }
   };
 
-  // Fetch reservation activities
   const fetchReservationActivities = async () => {
     if (!reservationId) {
       setError('Please enter a Reservation ID');
@@ -102,154 +113,158 @@ const AdminActivity: React.FC = () => {
   };
 
   return (
-    <div className="container mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-4">Admin Activity Management</h1>
+    <Box sx={{ maxWidth: 1200, mx: 'auto', p: 3 }}>
+      <Typography variant="h4" gutterBottom>
+        Admin Activity Management
+      </Typography>
 
       {/* Activity Form */}
-      <form onSubmit={handleSubmit} className="mb-8 p-4 bg-gray-100 rounded">
-        <h2 className="text-xl mb-4">{editingId ? 'Edit Activity' : 'Add New Activity'}</h2>
-        <div className="grid grid-cols-1 gap-4">
-          <input
-            type="text"
+      <Paper sx={{ p: 3, mb: 4 }}>
+        <Typography variant="h6" gutterBottom>
+          {editingId ? 'Edit Activity' : 'Add New Activity'}
+        </Typography>
+        <Box component="form" onSubmit={handleSubmit} sx={{ display: 'grid', gap: 2 }}>
+          <TextField
+            label="Activity Name"
             name="name"
             value={formData.name}
             onChange={handleInputChange}
-            placeholder="Activity Name"
-            className="p-2 border rounded"
             required
+            fullWidth
           />
-          <textarea
+          <TextField
+            label="Description"
             name="description"
             value={formData.description}
             onChange={handleInputChange}
-            placeholder="Description"
-            className="p-2 border rounded"
+            multiline
+            rows={3}
+            fullWidth
           />
-          <input
-            type="number"
+          <TextField
+            label="Local Price"
             name="localPrice"
             value={formData.localPrice}
             onChange={handleInputChange}
-            placeholder="Local Price"
-            className="p-2 border rounded"
-            step="0.01"
-            required
-          />
-          <input
             type="number"
+            inputProps={{ step: '0.01', min: '0' }}
+            required
+            fullWidth
+          />
+          <TextField
+            label="Foreign Price"
             name="foreignPrice"
             value={formData.foreignPrice}
             onChange={handleInputChange}
-            placeholder="Foreign Price"
-            className="p-2 border rounded"
-            step="0.01"
+            type="number"
+            inputProps={{ step: '0.01', min: '0' }}
             required
+            fullWidth
           />
-        </div>
-        <button type="submit" className="mt-4 bg-blue-500 text-white p-2 rounded">
-          {editingId ? 'Update Activity' : 'Add Activity'}
-        </button>
-        {editingId && (
-          <button
-            type="button"
-            onClick={() => {
-              setFormData({ name: '', description: '', localPrice: '', foreignPrice: '' });
-              setEditingId(null);
-            }}
-            className="mt-4 ml-2 bg-gray-500 text-white p-2 rounded"
-          >
-            Cancel
-          </button>
-        )}
-      </form>
+          <Box sx={{ display: 'flex', gap: 2 }}>
+            <Button type="submit" variant="contained" color="primary">
+              {editingId ? 'Update Activity' : 'Add Activity'}
+            </Button>
+            {editingId && (
+              <Button
+                type="button"
+                variant="outlined"
+                color="secondary"
+                onClick={() => {
+                  setFormData({ name: '', description: '', localPrice: '', foreignPrice: '' });
+                  setEditingId(null);
+                }}
+              >
+                Cancel
+              </Button>
+            )}
+          </Box>
+        </Box>
+      </Paper>
 
       {/* Error Message */}
-      {error && <p className="text-red-500 mb-4">{error}</p>}
+      {error && <Alert severity="error" sx={{ mb: 4 }}>{error}</Alert>}
 
       {/* Activities Table */}
-      <h2 className="text-xl mb-4">Activities List</h2>
-      <table className="w-full border-collapse border">
-        <thead>
-          <tr className="bg-gray-200">
-            <th className="border p-2">ID</th>
-            <th className="border p-2">Name</th>
-            <th className="border p-2">Description</th>
-            <th className="border p-2">Local Price</th>
-            <th className="border p-2">Foreign Price</th>
-            <th className="border p-2">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {activities.map((activity) => (
-            <tr key={activity.ActivityID}>
-              <td className="border p-2">{activity.ActivityID}</td>
-              <td className="border p-2">{activity.Name}</td>
-              <td className="border p-2">{activity.Description}</td>
-              <td className="border p-2">{activity.LocalPrice}</td>
-              <td className="border p-2">{activity.ForeignPrice}</td>
-              <td className="border p-2">
-                <button
-                  onClick={() => handleEdit(activity)}
-                  className="bg-yellow-500 text-white p-1 rounded mr-2"
-                >
-                  Edit
-                </button>
-                <button
-                  onClick={() => handleDelete(activity.ActivityID)}
-                  className="bg-red-500 text-white p-1 rounded"
-                >
-                  Delete
-                </button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <Typography variant="h6" gutterBottom>
+        Activities List
+      </Typography>
+      <TableContainer component={Paper} sx={{ mb: 4 }}>
+        <Table>
+          <TableHead>
+            <TableRow>
+              <TableCell>ID</TableCell>
+              <TableCell>Name</TableCell>
+              <TableCell>Description</TableCell>
+              <TableCell>Local Price</TableCell>
+              <TableCell>Foreign Price</TableCell>
+              <TableCell>Actions</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {activities.map((activity) => (
+              <TableRow key={activity.ActivityID}>
+                <TableCell>{activity.ActivityID}</TableCell>
+                <TableCell>{activity.Name}</TableCell>
+                <TableCell>{activity.Description}</TableCell>
+                <TableCell>{(Number(activity.LocalPrice) || 0).toFixed(2)}</TableCell> {/* Ensure it's a number */}
+                <TableCell>{(Number(activity.ForeignPrice) || 0).toFixed(2)}</TableCell> {/* Ensure it's a number */}
+                <TableCell>
+                  <IconButton onClick={() => handleEdit(activity)} color="primary">
+                    <EditIcon />
+                  </IconButton>
+                  <IconButton onClick={() => handleDelete(activity.ActivityID)} color="error">
+                    <DeleteIcon />
+                  </IconButton>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
 
       {/* Reservation Activities View */}
-      <div className="mt-8">
-        <h2 className="text-xl mb-4">View Reservation Activities</h2>
-        <div className="flex mb-4">
-          <input
-            type="text"
-            value={reservationId}
-            onChange={(e) => setReservationId(e.target.value)}
-            placeholder="Enter Reservation ID"
-            className="p-2 border rounded mr-2"
-          />
-          <button
-            onClick={fetchReservationActivities}
-            className="bg-blue-500 text-white p-2 rounded"
-          >
-            Fetch
-          </button>
-        </div>
-        {reservationActivities.length > 0 && (
-          <table className="w-full border-collapse border">
-            <thead>
-              <tr className="bg-gray-200">
-                <th className="border p-2">ID</th>
-                <th className="border p-2">Activity Name</th>
-                <th className="border p-2">Scheduled Date</th>
-                <th className="border p-2">Amount</th>
-                <th className="border p-2">Participants</th>
-              </tr>
-            </thead>
-            <tbody>
+      <Typography variant="h6" gutterBottom>
+        View Reservation Activities
+      </Typography>
+      <Box sx={{ display: 'flex', gap: 2, mb: 4 }}>
+        <TextField
+          label="Reservation ID"
+          value={reservationId}
+          onChange={(e) => setReservationId(e.target.value)}
+          fullWidth
+        />
+        <Button variant="contained" color="primary" onClick={fetchReservationActivities}>
+          Fetch
+        </Button>
+      </Box>
+      {reservationActivities.length > 0 && (
+        <TableContainer component={Paper}>
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableCell>ID</TableCell>
+                <TableCell>Activity Name</TableCell>
+                <TableCell>Scheduled Date</TableCell>
+                <TableCell>Amount</TableCell>
+                <TableCell>Participants</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
               {reservationActivities.map((ra) => (
-                <tr key={ra.ReservationActivityID}>
-                  <td className="border p-2">{ra.ReservationActivityID}</td>
-                  <td className="border p-2">{ra.Name}</td>
-                  <td className="border p-2">{ra.ScheduledDate}</td>
-                  <td className="border p-2">{ra.Amount}</td>
-                  <td className="border p-2">{ra.Participants}</td>
-                </tr>
+                <TableRow key={ra.ReservationActivityID}>
+                  <TableCell>{ra.ReservationActivityID}</TableCell>
+                  <TableCell>{ra.Name}</TableCell>
+                  <TableCell>{ra.ScheduledDate}</TableCell>
+                  <TableCell>{ra.Amount}</TableCell>
+                  <TableCell>{ra.Participants}</TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
-        )}
-      </div>
-    </div>
+            </TableBody>
+          </Table>
+        </TableContainer>
+      )}
+    </Box>
   );
 };
 
