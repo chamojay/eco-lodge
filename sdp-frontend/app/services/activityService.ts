@@ -108,14 +108,9 @@ export const activityService = {
     }
   },
 
-  addActivityToReservation: async (data: ReservationActivityCreate): Promise<{ id: number }> => {
+   addActivityToReservation: async (data: ReservationActivityCreate): Promise<{ id: number }> => {
     try {
-      const response = await axios.post<ReservationActivity>(`${API_URL}/reservation`, {
-        reservationId: data.reservationId,
-        activityId: data.activityId,
-        scheduledDate: data.scheduledDate,
-        participants: data.participants
-      });
+      const response = await axios.post<ReservationActivity>(`${API_URL}/reservation`, data);
       return { id: response.data.ReservationActivityID };
     } catch (error) {
       throw new Error(`Failed to add reservation activity: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -124,11 +119,7 @@ export const activityService = {
 
   updateReservationActivity: async (id: number, data: ReservationActivityUpdate): Promise<{ success: boolean }> => {
     try {
-      await axios.put(`${API_URL}/reservation/${id}`, {
-        scheduledDate: data.scheduledDate,
-        amount: data.amount,
-        participants: data.participants
-      });
+      await axios.put(`${API_URL}/reservation/${id}`, data);
       return { success: true };
     } catch (error) {
       throw new Error(`Failed to update reservation activity: ${error instanceof Error ? error.message : 'Unknown error'}`);
