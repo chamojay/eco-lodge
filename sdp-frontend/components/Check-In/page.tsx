@@ -199,6 +199,8 @@ const CheckInComponent = () => {
 
     if (!customerData.Phone.trim()) {
       newErrors.Phone = 'Phone number is required';
+    } else if (customerData.Phone.replace(/\D/g, '').length < 10) {
+      newErrors.Phone = 'Phone number must have at least 10 digits';
     } else if (customerData.Phone.replace(/\D/g, '').length > 10) {
       newErrors.Phone = 'Phone number cannot exceed 10 digits';
     } else if (!phoneRegex.test(customerData.Phone)) {
