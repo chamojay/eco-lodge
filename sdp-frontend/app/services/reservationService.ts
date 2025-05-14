@@ -21,9 +21,8 @@ export const reservationService = {
     }));
   },
 
-  completeCheckout: async (reservationID: string, TotalAmount:Number ) => {
-    const response = await axios.put(`${API_URL}/checkout/${reservationID}`, {
-      TotalAmount: TotalAmount
+  completeCheckout: async (reservationID: string) => {
+    const response = await axios.put(`${API_URL}/checkout/${reservationID}`, {   
     });
     return response.data;
   },

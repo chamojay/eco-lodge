@@ -113,19 +113,18 @@ const ReservationController = {
     }
   },
 
-  // Complete checkout and update total amount
+  // Complete checkout process
   completeCheckout: async (req, res) => {
     const { id } = req.params;
-    const { totalAmount } = req.body;
 
     const connection = await pool.getConnection();
     try {
       await connection.beginTransaction();
 
-      // Update reservation status and total amount
+      // Update reservation status to 'Completed'
       await connection.query(
-        'UPDATE reservations SET Room_Status = "Completed", TotalAmount = ? WHERE ReservationID = ?',
-        [totalAmount, id]
+        'UPDATE reservations SET Room_Status = "Completed" WHERE ReservationID = ?',
+        [id]
       );
 
       await connection.commit();
