@@ -20,8 +20,17 @@ import {
   TableRow,
   TableCell,
   TableBody,
-  Paper
+  Paper,
+  IconButton,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
+  Snackbar,
+  Alert
 } from '@mui/material';
+import DeleteIcon from '@mui/icons-material/Delete';
 import { reservationService } from '@/app/services/reservationService';
 import { extraChargesService, ExtraCharge, ExtraChargeType } from '@/app/services/extraChargesService';
 
@@ -45,7 +54,6 @@ const getCheckoutStatus = (checkoutDate: string): 'today' | 'overdue' | 'future'
   return 'future';
 };
 
-// Add a formatting helper function at the top of your component
 const formatAmount = (amount: number | string): string => {
   const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
   return !isNaN(numAmount) ? numAmount.toFixed(2) : '0.00';
@@ -67,6 +75,8 @@ const CheckOutComponent = () => {
     ReservationID: 0,
     TypeID: null
   });
+  const [openConfirmDialog, setOpenConfirmDialog] = useState(false);
+  const [openSuccessSnackbar, setOpenSuccessSnackbar] = useState(false);
 
   useEffect(() => {
     const fetchInitialData = async () => {
@@ -111,7 +121,7 @@ const CheckOutComponent = () => {
         ReservationID: Number(selectedReservation.ReservationID),
         TypeID: newCharge.TypeID,
         Description: newCharge.Description,
-        Amount: Number(newCharge.Amount) // Ensure it's a number
+        Amount: Number(newCharge.Amount)
       });
       
       await fetchExtraCharges(selectedReservation.ReservationID);
@@ -128,19 +138,41 @@ const CheckOutComponent = () => {
     }
   };
 
+  const handleRemoveCharge = async (chargeId: number) => {
+    try {
+      await extraChargesService.deleteCharge(chargeId);
+      if (selectedReservation) {
+        await fetchExtraCharges(selectedReservation.ReservationID);
+      }
+    } catch (error) {
+      console.error('Error removing charge:', error);
+    }
+  };
+
+  const handleOpenConfirmDialog = () => {
+    setOpenConfirmDialog(true);
+  };
+
+  const handleCloseConfirmDialog = () => {
+    setOpenConfirmDialog(false);
+  };
+
+  const handleCloseSuccessSnackbar = () => {
+    setOpenSuccessSnackbar(false);
+  };
+
   const handleCompleteCheckout = async () => {
     if (!selectedReservation) return;
 
     setProcessing(selectedReservation.ReservationID);
     try {
-      const totalExtraCharges = extraCharges.reduce((sum, charge) => sum + charge.Amount, 0);
-      const baseAmount = selectedReservation.TotalAmount || 0;
-      const TotalAmount = baseAmount + totalExtraCharges;
-      await reservationService.completeCheckout(selectedReservation.ReservationID, TotalAmount);
+      await reservationService.completeCheckout(selectedReservation.ReservationID);
       setReservations(reservations.filter(r => r.ReservationID !== selectedReservation.ReservationID));
       setOpenModal(false);
       setSelectedReservation(null);
       setExtraCharges([]);
+      setOpenConfirmDialog(false);
+      setOpenSuccessSnackbar(true);
     } catch (error) {
       console.error('Checkout failed:', error);
     }
@@ -252,6 +284,7 @@ const CheckOutComponent = () => {
                       <TableCell>Type</TableCell>
                       <TableCell>Description</TableCell>
                       <TableCell align="right">Amount</TableCell>
+                      <TableCell align="right">Action</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -260,8 +293,9 @@ const CheckOutComponent = () => {
                         <TableCell>Room Charges</TableCell>
                         <TableCell>Base reservation cost</TableCell>
                         <TableCell align="right">
-                          ${selectedReservation.TotalAmount.toFixed(2)}
+                          LKR {selectedReservation.TotalAmount.toFixed(2)}
                         </TableCell>
+                        <TableCell></TableCell>
                       </TableRow>
                     )}
                     {extraCharges.map((charge) => (
@@ -269,13 +303,21 @@ const CheckOutComponent = () => {
                         <TableCell>{charge.TypeName || 'Custom'}</TableCell>
                         <TableCell>{charge.Description}</TableCell>
                         <TableCell align="right">
-                          ${formatAmount(charge.Amount)}
+                          LKR {formatAmount(charge.Amount)}
+                        </TableCell>
+                        <TableCell align="right">
+                          <IconButton
+                            color="error"
+                            onClick={() => handleRemoveCharge(charge.ChargeID)}
+                          >
+                            <DeleteIcon />
+                          </IconButton>
                         </TableCell>
                       </TableRow>
                     ))}
                     <TableRow>
-                      <TableCell colSpan={2}><strong>Grand Total</strong></TableCell>
-                      <TableCell align="right"><strong>${totalInvoice.toFixed(2)}</strong></TableCell>
+                      <TableCell colSpan={3}><strong>Grand Total</strong></TableCell>
+                      <TableCell align="right"><strong>LKR {totalInvoice.toFixed(2)}</strong></TableCell>
                     </TableRow>
                   </TableBody>
                 </Table>
@@ -297,13 +339,13 @@ const CheckOutComponent = () => {
                   </Button>
                   <Button
                     variant="contained"
-                    onClick={handleCompleteCheckout}
+                    onClick={handleOpenConfirmDialog}
                     disabled={processing === selectedReservation?.ReservationID}
                   >
                     {processing === selectedReservation?.ReservationID ? (
                       <CircularProgress size={24} />
                     ) : (
-                      'Complete Checkout'
+                      'Proceed to Checkout'
                     )}
                   </Button>
                 </Box>
@@ -330,7 +372,7 @@ const CheckOutComponent = () => {
                   <MenuItem value="">Custom Charge</MenuItem>
                   {extraChargeTypes.map((type) => (
                     <MenuItem key={type.TypeID} value={type.TypeID}>
-                      {type.Name} (${type.DefaultAmount})
+                      {type.Name} (LKR {type.DefaultAmount})
                     </MenuItem>
                   ))}
                 </Select>
@@ -372,6 +414,55 @@ const CheckOutComponent = () => {
           )}
         </Box>
       </Modal>
+
+      <Dialog
+        open={openConfirmDialog}
+        onClose={handleCloseConfirmDialog}
+        aria-labelledby="confirm-checkout-title"
+        aria-describedby="confirm-checkout-description"
+      >
+        <DialogTitle id="confirm-checkout-title">
+          Confirm Checkout
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText id="confirm-checkout-description">
+            Are you sure you want to complete the checkout for {selectedReservation?.FirstName} {selectedReservation?.LastName}?
+            The total amount due is LKR {totalInvoice.toFixed(2)}.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseConfirmDialog} color="primary">
+            Cancel
+          </Button>
+          <Button
+            onClick={handleCompleteCheckout}
+            color="primary"
+            variant="contained"
+            disabled={processing === selectedReservation?.ReservationID}
+          >
+            {processing === selectedReservation?.ReservationID ? (
+              <CircularProgress size={24} />
+            ) : (
+              'Confirm Checkout'
+            )}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Snackbar
+        open={openSuccessSnackbar}
+        autoHideDuration={6000}
+        onClose={handleCloseSuccessSnackbar}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert
+          onClose={handleCloseSuccessSnackbar}
+          severity="success"
+          sx={{ width: '100%' }}
+        >
+          Checkout completed successfully for {selectedReservation?.FirstName} {selectedReservation?.LastName}!
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };
