@@ -43,23 +43,24 @@ model extra_charges {
 }
 
 model reservations {
-  ReservationID   Int                       @id @default(autoincrement())
-  CustomerID      Int
-  CheckInDate     DateTime                  @db.Date
-  CheckOutDate    DateTime                  @db.Date
-  TotalAmount     Decimal                   @db.Decimal(10, 2)
-  Room_Status     reservations_Room_Status  @default(Pending)
-  PackageType     reservations_PackageType? @default(RoomOnly)
-  Adults          Int?
-  Children        Int?
-  SpecialRequests String?                   @db.Text
-  ArrivalTime     DateTime?                 @db.Time(0)
-  DepartureTime   DateTime?                 @db.Time(0)
-  CreatedAt       DateTime?                 @default(now()) @db.Timestamp(0)
-  RoomID          Int
-  extra_charges   extra_charges[]
-  customers       customers                 @relation(fields: [CustomerID], references: [CustomerID], onDelete: NoAction, onUpdate: NoAction, map: "reservations_ibfk_1")
-  rooms           rooms                     @relation(fields: [RoomID], references: [RoomID], onDelete: NoAction, onUpdate: NoAction, map: "reservations_ibfk_2")
+  ReservationID          Int                       @id @default(autoincrement())
+  CustomerID             Int
+  CheckInDate            DateTime                  @db.Date
+  CheckOutDate           DateTime                  @db.Date
+  TotalAmount            Decimal                   @db.Decimal(10, 2)
+  Room_Status            reservations_Room_Status  @default(Pending)
+  PackageType            reservations_PackageType? @default(RoomOnly)
+  Adults                 Int?
+  Children               Int?
+  SpecialRequests        String?                   @db.Text
+  ArrivalTime            DateTime?                 @db.Time(0)
+  DepartureTime          DateTime?                 @db.Time(0)
+  CreatedAt              DateTime?                 @default(now()) @db.Timestamp(0)
+  RoomID                 Int
+  extra_charges          extra_charges[]
+  reservation_activities reservation_activities[]
+  customers              customers                 @relation(fields: [CustomerID], references: [CustomerID], onDelete: NoAction, onUpdate: NoAction, map: "reservations_ibfk_1")
+  rooms                  rooms                     @relation(fields: [RoomID], references: [RoomID], onDelete: NoAction, onUpdate: NoAction, map: "reservations_ibfk_2")
 
   @@index([CustomerID], map: "CustomerID")
   @@index([RoomID], map: "RoomID")
@@ -74,6 +75,31 @@ model rooms {
   ForeignPrice Decimal        @db.Decimal(10, 2)
   MaxPeople    Int
   reservations reservations[]
+}
+
+model activities {
+  ActivityID             Int                      @id @default(autoincrement())
+  Name                   String                   @db.VarChar(100)
+  Description            String?                  @db.Text
+  LocalPrice             Decimal                  @db.Decimal(10, 2)
+  ForeignPrice           Decimal                  @db.Decimal(10, 2)
+  CreatedAt              DateTime?                @default(now()) @db.Timestamp(0)
+  reservation_activities reservation_activities[]
+}
+
+model reservation_activities {
+  ReservationActivityID Int          @id @default(autoincrement())
+  ReservationID         Int
+  ActivityID            Int
+  ScheduledDate         DateTime     @db.Date
+  Amount                Decimal      @db.Decimal(10, 2)
+  CreatedAt             DateTime?    @default(now()) @db.Timestamp(0)
+  Participants          Int          @default(1)
+  reservations          reservations @relation(fields: [ReservationID], references: [ReservationID], onDelete: Cascade, onUpdate: NoAction, map: "reservation_activities_ibfk_1")
+  activities            activities   @relation(fields: [ActivityID], references: [ActivityID], onUpdate: NoAction, map: "reservation_activities_ibfk_2")
+
+  @@index([ActivityID], map: "ActivityID")
+  @@index([ReservationID], map: "ReservationID")
 }
 
 enum customers_Title {
