@@ -23,7 +23,9 @@ const TEST_CARDS = {
 };
 
 interface PaymentDetails {
-  method: 'Cash' | 'Card' | 'Online';  // Updated to match database ENUM
+  method: 'Cash' | 'Card' | 'Online';
+  cashReceived?: number;
+  balance?: number;
   cardNumber?: string;
   cardHolder?: string;
 }
@@ -46,6 +48,9 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
   const [paymentMethod, setPaymentMethod] = useState<'Cash' | 'Card' | 'Online'>('Cash');
   const [cardNumber, setCardNumber] = useState('');
   const [cardHolder, setCardHolder] = useState('');
+  const [cashReceived, setCashReceived] = useState<string>('');
+  const [balance, setBalance] = useState<number>(0);
+  const [showBalance, setShowBalance] = useState(false);
   const [showTestData, setShowTestData] = useState(false);
 
   const handleTestDataLoad = (type: string) => {
@@ -80,10 +85,27 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
     </Box>
   );
 
+  const calculateBalance = (amount: string) => {
+    const received = parseFloat(amount);
+    if (!isNaN(received)) {
+      setBalance(received - total);
+      setShowBalance(true);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (paymentMethod === 'Cash' && balance < 0) {
+      alert('Insufficient cash received');
+      return;
+    }
+    
     const details: PaymentDetails = {
       method: paymentMethod,
+      ...(paymentMethod === 'Cash' && { 
+        cashReceived: parseFloat(cashReceived),
+        balance: balance
+      }),
       ...(paymentMethod === 'Card' && { cardNumber, cardHolder })
     };
     await onConfirm(details);
@@ -130,6 +152,28 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
                 margin="normal"
                 required
               />
+            </Box>
+          )}
+
+          {paymentMethod === 'Cash' && (
+            <Box sx={{ mt: 2 }}>
+              <TextField
+                fullWidth
+                label="Cash Received"
+                value={cashReceived}
+                onChange={(e) => {
+                  setCashReceived(e.target.value);
+                  calculateBalance(e.target.value);
+                }}
+                type="number"
+                margin="normal"
+                required
+              />
+              {showBalance && (
+                <Typography variant="h6" color={balance >= 0 ? 'success.main' : 'error.main'}>
+                  Balance: Rs. {balance.toFixed(2)}
+                </Typography>
+              )}
             </Box>
           )}
 

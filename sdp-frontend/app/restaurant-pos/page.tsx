@@ -15,9 +15,11 @@ import {
   Typography,
   Alert,
   Snackbar,
+  Dialog,
 } from "@mui/material";
 import axios from "axios";
 import PaymentModal from "@/components/PaymentModal";
+import Receipt from '@/components/Receipt';
 
 interface MenuItem {
   ItemID: number;
@@ -64,6 +66,8 @@ const POSPage = () => {
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [paymentDetails, setPaymentDetails] = useState<PaymentDetails>({ method: 'Cash' });
   const [isProcessing, setIsProcessing] = useState(false);
+  const [showReceipt, setShowReceipt] = useState(false);
+  const [receiptData, setReceiptData] = useState(null);
 
   // Fetch categories and menu items
   useEffect(() => {
@@ -145,7 +149,7 @@ const POSPage = () => {
         })),
       });
 
-      // Process payment with payment details
+      // Process payment
       await axios.post("http://localhost:5000/api/payments", {
         OrderID: orderRes.data.OrderID,
         Amount: Number(total.toFixed(2)),
@@ -156,6 +160,18 @@ const POSPage = () => {
         }
       });
 
+      // Prepare receipt data
+      setReceiptData({
+        orderId: orderRes.data.OrderID,
+        items: cart,
+        total: total,
+        paymentMethod: details.method,
+        cashReceived: details.cashReceived,
+        balance: details.balance,
+        timestamp: new Date().toISOString()
+      });
+
+      setShowReceipt(true);
       setCart([]);
       setIsPaymentModalOpen(false);
       setSuccess(`Order #${orderRes.data.OrderID} completed successfully`);
@@ -314,6 +330,17 @@ const POSPage = () => {
         total={total}
         isProcessing={isProcessing}
       />
+
+      {showReceipt && receiptData && (
+        <Dialog
+          open={showReceipt}
+          onClose={() => setShowReceipt(false)}
+          maxWidth="md"
+          fullWidth
+        >
+          <Receipt orderData={receiptData} />
+        </Dialog>
+      )}
     </Box>
   );
 };
