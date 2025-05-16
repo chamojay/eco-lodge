@@ -17,6 +17,7 @@ import {
   Snackbar,
 } from "@mui/material";
 import axios from "axios";
+import PaymentModal from "@/components/PaymentModal";
 
 interface MenuItem {
   ItemID: number;
@@ -39,6 +40,14 @@ interface CartItem extends MenuItem {
   quantity: number;
 }
 
+interface PaymentDetails {
+  method: 'Cash' | 'Card' | 'Mobile';
+  cardNumber?: string;
+  cardHolder?: string;
+  mobileNumber?: string;
+  referenceNumber?: string;
+}
+
 const POSPage = () => {
   const formatPrice = (price: string | number): string => {
     const numPrice = typeof price === "string" ? parseFloat(price) : price;
@@ -52,6 +61,9 @@ const POSPage = () => {
   const [total, setTotal] = useState<number>(0);
   const [error, setError] = useState<string>("");
   const [success, setSuccess] = useState<string>("");
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  const [paymentDetails, setPaymentDetails] = useState<PaymentDetails>({ method: 'Cash' });
+  const [isProcessing, setIsProcessing] = useState(false);
 
   // Fetch categories and menu items
   useEffect(() => {
@@ -113,14 +125,18 @@ const POSPage = () => {
     );
   };
 
-  const handleCheckout = async () => {
-    try {
-      if (cart.length === 0) {
-        setError("Cart is empty!");
-        return;
-      }
+  const handleCheckout = () => {
+    if (cart.length === 0) {
+      setError("Cart is empty!");
+      return;
+    }
+    setIsPaymentModalOpen(true);
+  };
 
-      // Create order with properly formatted prices
+  const handlePaymentConfirm = async (details: PaymentDetails) => {
+    setIsProcessing(true);
+    try {
+      // Create order first
       const orderRes = await axios.post<OrderResponse>("http://localhost:5000/api/orders", {
         items: cart.map((item) => ({
           ItemID: item.ItemID,
@@ -129,18 +145,25 @@ const POSPage = () => {
         })),
       });
 
-      // Process payment with properly formatted total
+      // Process payment with payment details
       await axios.post("http://localhost:5000/api/payments", {
         OrderID: orderRes.data.OrderID,
         Amount: Number(total.toFixed(2)),
-        PaymentMethod: "Cash",
+        PaymentMethod: details.method,
+        PaymentDetails: {
+          ...details,
+          timestamp: new Date().toISOString()
+        }
       });
 
       setCart([]);
+      setIsPaymentModalOpen(false);
       setSuccess(`Order #${orderRes.data.OrderID} completed successfully`);
     } catch (err) {
       console.error('Checkout error:', err);
-      setError("Checkout failed. Please try again.");
+      setError("Payment failed. Please try again.");
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -253,8 +276,9 @@ const POSPage = () => {
                     size="large"
                     onClick={handleCheckout}
                     sx={{ mt: 2 }}
+                    disabled={isProcessing}
                   >
-                    Checkout
+                    {isProcessing ? "Processing..." : "Checkout"}
                   </Button>
                 </Box>
               </>
@@ -282,6 +306,14 @@ const POSPage = () => {
           {success}
         </Alert>
       </Snackbar>
+
+      <PaymentModal
+        open={isPaymentModalOpen}
+        onClose={() => setIsPaymentModalOpen(false)}
+        onConfirm={handlePaymentConfirm}
+        total={total}
+        isProcessing={isProcessing}
+      />
     </Box>
   );
 };
