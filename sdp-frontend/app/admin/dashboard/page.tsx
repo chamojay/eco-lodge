@@ -1,4 +1,6 @@
 'use client';
+
+import ProtectedRoute from '@/components/ProtectedRoute';
 import React, { useState } from 'react';
 import { 
   Box, Drawer, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Toolbar, CssBaseline, 
@@ -59,7 +61,6 @@ const AdminDashboard: React.FC = () => {
     { id: 'reservations', label: 'Reservations', icon: <CalendarToday /> },
     { id: 'extra-charges', label: 'Extra Charges', icon: <Assessment /> },
     { id: 'activities', label: 'Activities', icon: <Assessment /> },
-   
     { id: 'reports', label: 'Reports', icon: <Assessment /> },
   ];
 
@@ -79,7 +80,6 @@ const AdminDashboard: React.FC = () => {
             </Typography>
           </Box>
         );
-      
     }
   };
 
@@ -155,4 +155,10 @@ const AdminDashboard: React.FC = () => {
   );
 };
 
-export default AdminDashboard;
+export default function AdminPage() {
+  return (
+    <ProtectedRoute allowedRoles={['ADMIN']}>
+      <AdminDashboard />
+    </ProtectedRoute>
+  );
+}

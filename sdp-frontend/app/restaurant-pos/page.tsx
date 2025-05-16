@@ -20,6 +20,7 @@ import {
 import axios from "axios";
 import PaymentModal from "@/components/PaymentModal";
 import Receipt from '@/components/Receipt';
+import ProtectedRoute from '@/components/ProtectedRoute';
 
 interface MenuItem {
   ItemID: number;
@@ -184,164 +185,195 @@ const POSPage = () => {
   };
 
   return (
-    <Box sx={{ p: 4, bgcolor: "#f5f5f5", minHeight: "100vh" }}>
-      <Typography variant="h4" gutterBottom sx={{ color: "primary.main" }}>
-        Eco Lounge POS System
-      </Typography>
+    <ProtectedRoute allowedRoles={['RESTAURANT']}>
+      <Box sx={{ p: 4, bgcolor: "#f5f5f5", minHeight: "100vh" }}>
+        <Typography variant="h4" gutterBottom sx={{ color: "primary.main" }}>
+          Eco Lounge POS System
+        </Typography>
 
-      <Grid container spacing={3}>
-        {/* Menu Section */}
-        <Grid item xs={8}>
-          <FormControl fullWidth sx={{ mb: 3 }}>
-            <InputLabel>Category</InputLabel>
-            <Select
-              value={selectedCategory}
-              label="Category"
-              onChange={(e) => setSelectedCategory(Number(e.target.value))}
-            >
-              {categories.map((cat) => (
-                <MenuItem key={cat.CategoryID} value={cat.CategoryID}>
-                  {cat.Name}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
+        <Grid container spacing={3}>
+          {/* Menu Section */}
+          <Grid item xs={8}>
+            <FormControl fullWidth sx={{ mb: 3 }}>
+              <InputLabel>Category</InputLabel>
+              <Select
+                value={selectedCategory}
+                label="Category"
+                onChange={(e) => setSelectedCategory(Number(e.target.value))}
+              >
+                {categories.map((cat) => (
+                  <MenuItem key={cat.CategoryID} value={cat.CategoryID}>
+                    {cat.Name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
 
-          <Grid container spacing={2}>
-            {menuItems
-              .filter((item) => item.CategoryID === selectedCategory)
-              .map((item) => (
-                <Grid item xs={4} key={item.ItemID}>
-                  <Card
-                    sx={{
-                      cursor: "pointer",
-                      "&:hover": { transform: "scale(1.02)" },
-                      transition: "transform 0.2s",
-                    }}
-                    onClick={() => handleAddToCart(item)}
-                  >
-                    <CardContent>
-                      <Typography variant="h6">{item.Name}</Typography>
-                      <Typography color="primary">
-                        Rs. {formatPrice(item.Price)}
-                      </Typography>
-                    </CardContent>
-                  </Card>
-                </Grid>
-              ))}
+            <Grid container spacing={2}>
+              {menuItems
+                .filter((item) => item.CategoryID === selectedCategory)
+                .map((item) => (
+                  <Grid item xs={4} key={item.ItemID}>
+                    <Card
+                      sx={{
+                        cursor: "pointer",
+                        "&:hover": { transform: "scale(1.02)" },
+                        transition: "transform 0.2s",
+                      }}
+                      onClick={() => handleAddToCart(item)}
+                    >
+                      <CardContent>
+                        <Typography variant="h6">{item.Name}</Typography>
+                        <Typography color="primary">
+                          Rs. {formatPrice(item.Price)}
+                        </Typography>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                ))}
+            </Grid>
+          </Grid>
+
+          {/* Cart Section */}
+          <Grid item xs={4}>
+            <Card sx={{ p: 2, position: "sticky", top: 20 }}>
+              <Typography variant="h5" gutterBottom>
+                Cart
+              </Typography>
+
+              {cart.length === 0 ? (
+                <Typography color="text.secondary">No items in cart</Typography>
+              ) : (
+                <>
+                  {cart.map((item) => (
+                    <Box
+                      key={item.ItemID}
+                      sx={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        mb: 1,
+                      }}
+                    >
+                      <Typography>{item.Name}</Typography>
+                      <Box>
+                        <Button
+                          size="small"
+                          onClick={() =>
+                            handleUpdateQuantity(item.ItemID, item.quantity - 1)
+                          }
+                        >
+                          -
+                        </Button>
+                        <Typography component="span" sx={{ mx: 1 }}>
+                          {item.quantity}
+                        </Typography>
+                        <Button
+                          size="small"
+                          onClick={() =>
+                            handleUpdateQuantity(item.ItemID, item.quantity + 1)
+                          }
+                        >
+                          +
+                        </Button>
+                        <Typography sx={{ ml: 2 }}>
+                          Rs. {formatPrice(Number(item.Price) * item.quantity)}
+                        </Typography>
+                      </Box>
+                    </Box>
+                  ))}
+
+                  <Box sx={{ mt: 3, borderTop: 1, pt: 2 }}>
+                    <Typography variant="h6">
+                      Total: Rs. {total.toFixed(2)}
+                    </Typography>
+                    <Button
+                      fullWidth
+                      variant="contained"
+                      color="primary"
+                      size="large"
+                      onClick={handleCheckout}
+                      sx={{ mt: 2 }}
+                      disabled={isProcessing}
+                    >
+                      {isProcessing ? "Processing..." : "Checkout"}
+                    </Button>
+                  </Box>
+                </>
+              )}
+            </Card>
           </Grid>
         </Grid>
 
-        {/* Cart Section */}
-        <Grid item xs={4}>
-          <Card sx={{ p: 2, position: "sticky", top: 20 }}>
-            <Typography variant="h5" gutterBottom>
-              Cart
-            </Typography>
-
-            {cart.length === 0 ? (
-              <Typography color="text.secondary">No items in cart</Typography>
-            ) : (
-              <>
-                {cart.map((item) => (
-                  <Box
-                    key={item.ItemID}
-                    sx={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      mb: 1,
-                    }}
-                  >
-                    <Typography>{item.Name}</Typography>
-                    <Box>
-                      <Button
-                        size="small"
-                        onClick={() =>
-                          handleUpdateQuantity(item.ItemID, item.quantity - 1)
-                        }
-                      >
-                        -
-                      </Button>
-                      <Typography component="span" sx={{ mx: 1 }}>
-                        {item.quantity}
-                      </Typography>
-                      <Button
-                        size="small"
-                        onClick={() =>
-                          handleUpdateQuantity(item.ItemID, item.quantity + 1)
-                        }
-                      >
-                        +
-                      </Button>
-                      <Typography sx={{ ml: 2 }}>
-                        Rs. {formatPrice(Number(item.Price) * item.quantity)}
-                      </Typography>
-                    </Box>
-                  </Box>
-                ))}
-
-                <Box sx={{ mt: 3, borderTop: 1, pt: 2 }}>
-                  <Typography variant="h6">
-                    Total: Rs. {total.toFixed(2)}
-                  </Typography>
-                  <Button
-                    fullWidth
-                    variant="contained"
-                    color="primary"
-                    size="large"
-                    onClick={handleCheckout}
-                    sx={{ mt: 2 }}
-                    disabled={isProcessing}
-                  >
-                    {isProcessing ? "Processing..." : "Checkout"}
-                  </Button>
-                </Box>
-              </>
-            )}
-          </Card>
-        </Grid>
-      </Grid>
-
-      <Snackbar
-        open={!!error}
-        autoHideDuration={6000}
-        onClose={() => setError("")}
-      >
-        <Alert severity="error" onClose={() => setError("")}>
-          {error}
-        </Alert>
-      </Snackbar>
-
-      <Snackbar
-        open={!!success}
-        autoHideDuration={6000}
-        onClose={() => setSuccess("")}
-      >
-        <Alert severity="success" onClose={() => setSuccess("")}>
-          {success}
-        </Alert>
-      </Snackbar>
-
-      <PaymentModal
-        open={isPaymentModalOpen}
-        onClose={() => setIsPaymentModalOpen(false)}
-        onConfirm={handlePaymentConfirm}
-        total={total}
-        isProcessing={isProcessing}
-      />
-
-      {showReceipt && receiptData && (
-        <Dialog
-          open={showReceipt}
-          onClose={() => setShowReceipt(false)}
-          maxWidth="md"
-          fullWidth
+        <Snackbar
+          open={!!error}
+          autoHideDuration={6000}
+          onClose={() => setError("")}
         >
-          <Receipt orderData={receiptData} />
-        </Dialog>
-      )}
-    </Box>
+          <Alert severity="error" onClose={() => setError("")}>
+            {error}
+          </Alert>
+        </Snackbar>
+
+        <Snackbar
+          open={!!success}
+          autoHideDuration={6000}
+          onClose={() => setSuccess("")}
+        >
+          <Alert severity="success" onClose={() => setSuccess("")}>
+            {success}
+          </Alert>
+        </Snackbar>
+
+        <PaymentModal
+          open={isPaymentModalOpen}
+          onClose={() => setIsPaymentModalOpen(false)}
+          onConfirm={handlePaymentConfirm}
+          total={total}
+          isProcessing={isProcessing}
+        />
+        <Box sx={{ position: "fixed", top: 24, right: 32, zIndex: 1200 }}>
+          <Button
+            variant="outlined"
+            color="secondary"
+            onClick={() => {
+              localStorage.removeItem("token");
+              window.location.href = "/login/staff?message=You have been logged out.";
+            }}
+          >
+            Logout
+          </Button>
+        </Box>
+        {/* Redirect to login with confirmation if page is refreshed */}
+        <React.Fragment>
+          {typeof window !== "undefined" && (
+            <React.Fragment>
+              {(() => {
+            // Check if page was refreshed (performance.navigation.type === 1)
+            if (
+              window.performance &&
+              window.performance.getEntriesByType("navigation")[0]?.type === "reload"
+            ) {
+              localStorage.removeItem("token");
+              window.location.href = "/login/staff?message=Session expired. Please login again.";
+            }
+            return null;
+              })()}
+            </React.Fragment>
+          )}
+        </React.Fragment>
+        {showReceipt && receiptData && (
+          <Dialog
+            open={showReceipt}
+            onClose={() => setShowReceipt(false)}
+            maxWidth="md"
+            fullWidth
+          >
+            <Receipt orderData={receiptData} />
+          </Dialog>
+        )}
+      </Box>
+    </ProtectedRoute>
   );
 };
 

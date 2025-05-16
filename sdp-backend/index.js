@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const userRoutes = require('./routes/userRoutes');
@@ -10,6 +11,7 @@ const activityRoutes = require('./routes/activityRoutes');
 const menuRoutes = require('./routes/Restaurant/menuRoutes');
 const orderRoutes = require('./routes/Restaurant/orderRoutes');
 const paymentRoutes = require('./routes/Restaurant/paymentRoutes');
+const authRoutes = require('./routes/authRoutes');
 const app = express();
 const port = 5000;
 
@@ -29,6 +31,7 @@ app.use('/api/activities', activityRoutes);
 app.use('/api/menu', menuRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/payments', paymentRoutes);
+app.use('/api/auth', authRoutes);
 
 // Global error handler
 app.use((err, req, res, next) => {

@@ -1,7 +1,6 @@
-export const metadata = {
-  title: 'Algama Ella Eco Lodge',
-  description: 'Official System for Algama Ella Eco Lodge',
-}
+'use client';
+
+import { AuthProvider } from '@/contexts/AuthContext';
 
 export default function RootLayout({
   children,
@@ -10,7 +9,11 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <AuthProvider>
+          {children}
+        </AuthProvider>
+      </body>
     </html>
-  )
+  );
 }

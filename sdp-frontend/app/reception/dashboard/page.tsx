@@ -38,6 +38,7 @@ import {
 import { styled } from '@mui/material/styles';
 import ReservationComponent from '@/components/Reservations-R/page';
 import ReceptionActivity from '@/components/Reception-Activity/page';
+import ProtectedRoute from '@/components/ProtectedRoute';
 
 const drawerWidth = 240;
 const collapsedDrawerWidth = 56;
@@ -259,4 +260,10 @@ const ReceptionDashboard: React.FC = () => {
   );
 };
 
-export default ReceptionDashboard;
+export default function ReceptionPage() {
+  return (
+    <ProtectedRoute allowedRoles={['RECEPTION']}>
+      <ReceptionDashboard />
+    </ProtectedRoute>
+  );
+}

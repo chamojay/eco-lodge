@@ -8,17 +8,17 @@ import {
   Button,
   Typography,
   CircularProgress,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
+  Alert,
 } from '@mui/material';
 import { useRouter } from 'next/navigation';
+import axios from 'axios';
+import { useAuth } from '@/contexts/AuthContext';
 
 const StaffLogin = () => {
   const router = useRouter();
+  const { login } = useAuth();
   const [loading, setLoading] = useState(false);
-  const [userType, setUserType] = useState('reception');
+  const [error, setError] = useState('');
   const [credentials, setCredentials] = useState({
     username: '',
     password: '',
@@ -27,19 +27,45 @@ const StaffLogin = () => {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setError('');
     
     try {
-      // Add your authentication logic here
-      // For now, we'll just simulate a login
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      if (userType === 'admin') {
-        router.push('/admin/dashboard');
-      } else {
-        router.push('/reception/dashboard');
+      // Add validation
+      if (!credentials.username || !credentials.password) {
+        setError('Please enter both username and password');
+        return;
       }
-    } catch (error) {
-      console.error('Login failed:', error);
+
+      const response = await axios.post('http://localhost:5000/api/auth/login', credentials);
+      const { token, role } = response.data;
+
+      if (!token || !role) {
+        throw new Error('Invalid response from server');
+      }
+
+      try {
+        await login(token, role);
+        
+        switch (role) {
+          case 'ADMIN':
+            router.push('/admin/dashboard');
+            break;
+          case 'RECEPTION':
+            router.push('/reception/dashboard');
+            break;
+          case 'RESTAURANT':
+            router.push('/restaurant-pos');
+            break;
+          default:
+            setError('Invalid role assigned to user');
+        }
+      } catch (loginError) {
+        console.error('Context login error:', loginError);
+        setError('Authentication failed. Please try again.');
+      }
+    } catch (error: any) {
+      console.error('Login error:', error);
+      setError(error.response?.data?.error || 'Login failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -76,18 +102,12 @@ const StaffLogin = () => {
         >
           Staff Login
         </Typography>
+        {error && (
+          <Alert severity="error" sx={{ mb: 2 }}>
+            {error}
+          </Alert>
+        )}
         <form onSubmit={handleLogin}>
-          <FormControl fullWidth sx={{ mb: 2 }}>
-            <InputLabel>Login As</InputLabel>
-            <Select
-              value={userType}
-              label="Login As"
-              onChange={(e) => setUserType(e.target.value)}
-            >
-              <MenuItem value="reception">Reception</MenuItem>
-              <MenuItem value="admin">Admin</MenuItem>
-            </Select>
-          </FormControl>
           <TextField
             fullWidth
             label="Username"
@@ -119,7 +139,7 @@ const StaffLogin = () => {
             }}
             disabled={loading}
           >
-            {loading ? <CircularProgress size={24} /> : 'Login'}
+            {loading ? <CircularProgress size={24} color="inherit" /> : 'Login'}
           </Button>
         </form>
       </Paper>
