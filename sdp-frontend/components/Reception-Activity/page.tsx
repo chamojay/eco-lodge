@@ -46,6 +46,8 @@ const FormContainer = styled(Box)(({ theme }) => ({
   },
 }));
 
+const FALLBACK_EXCHANGE_RATE = 320; // Same fallback rate as backend
+
 const ReceptionActivity = () => {
   const [activities, setActivities] = useState<ReservationActivity[]>([]);
   const [allActivities, setAllActivities] = useState<Activity[]>([]);
@@ -61,6 +63,7 @@ const ReceptionActivity = () => {
 
   const [isLocalCustomer, setIsLocalCustomer] = useState<boolean>(true);
   const [customerCountry, setCustomerCountry] = useState<string>('');
+  const [exchangeRate, setExchangeRate] = useState<number>(FALLBACK_EXCHANGE_RATE);
 
   useEffect(() => {
     const loadAllActivities = async () => {
@@ -72,6 +75,24 @@ const ReceptionActivity = () => {
       }
     };
     loadAllActivities();
+  }, []);
+
+  useEffect(() => {
+    const fetchExchangeRate = async () => {
+      try {
+        const response = await fetch(
+          'https://v6.exchangerate-api.com/v6/d46d62b08eb9229e97a8cf52/latest/USD'
+        );
+        const data = await response.json();
+        if (data.conversion_rates?.LKR) {
+          setExchangeRate(data.conversion_rates.LKR);
+        }
+      } catch (error) {
+        console.error('Failed to fetch exchange rate:', error);
+        // Keep using fallback rate
+      }
+    };
+    fetchExchangeRate();
   }, []);
 
   const checkCustomerNationality = async (reservationId: string) => {
@@ -306,9 +327,16 @@ const ReceptionActivity = () => {
               <TableBody>
                 {activities.map(activity => {
                   const isLocalCustomer = activity.Country?.toLowerCase() === 'sri lanka';
-                  const unitPrice = isLocalCustomer ? 
-                    activity.LocalPrice : 
-                    activity.ForeignPrice;
+                  const amount = parseFloat(activity.Amount.toString());
+                  
+                  // Convert LKR to USD for foreign customers
+                  const unitPriceInOriginalCurrency = isLocalCustomer
+                    ? amount / activity.Participants
+                    : (amount / activity.Participants) / exchangeRate;
+                  
+                  const totalAmountInOriginalCurrency = isLocalCustomer
+                    ? amount
+                    : amount / exchangeRate;
                 
                   return (
                     <TableRow key={activity.ReservationActivityID} hover>
@@ -319,25 +347,29 @@ const ReceptionActivity = () => {
                       <TableCell align="right">{activity.Participants}</TableCell>
                       <TableCell align="right">
                         {isLocalCustomer 
-                          ? Number(activity.Amount / activity.Participants).toLocaleString('si-LK', {
+                          ? Number(unitPriceInOriginalCurrency).toLocaleString('si-LK', {
                               style: 'currency',
                               currency: 'LKR',
                             })
-                          : Number(activity.Amount / activity.Participants).toLocaleString('en-US', {
+                          : Number(unitPriceInOriginalCurrency).toLocaleString('en-US', {
                               style: 'currency',
                               currency: 'USD',
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
                             })
                         }
                       </TableCell>
                       <TableCell align="right">
                         {isLocalCustomer
-                          ? Number(activity.Amount).toLocaleString('si-LK', {
+                          ? Number(totalAmountInOriginalCurrency).toLocaleString('si-LK', {
                               style: 'currency',
                               currency: 'LKR',
                             })
-                          : Number(activity.Amount).toLocaleString('en-US', {
+                          : Number(totalAmountInOriginalCurrency).toLocaleString('en-US', {
                               style: 'currency',
                               currency: 'USD',
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
                             })
                         }
                       </TableCell>

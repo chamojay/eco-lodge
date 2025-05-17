@@ -1,4 +1,5 @@
 const pool = require('../config/db');
+const axios = require('axios');
 
 // --- Activities CRUD Operations ---
 
@@ -145,11 +146,36 @@ const addActivityToReservation = async (req, res) => {
     const activity = activities[0];
 
     // Determine price based on customer's country
-    const isLocal = reservation.Country === 'Sri Lanka'; // Adjust country as needed
-    const perPersonPrice = isLocal ? activity.LocalPrice : activity.ForeignPrice;
-    const totalPrice = perPersonPrice * participants;
+    const isLocal = reservation.Country === 'Sri Lanka';
+    let totalPrice;
 
-    // Validate scheduled date (must be within check-in and check-out dates)
+    if (isLocal) {
+      totalPrice = activity.LocalPrice * participants;
+    } else {
+      try {
+        // Fetch current exchange rate
+        const API_KEY = 'd46d62b08eb9229e97a8cf52';
+        const response = await axios.get(
+          `https://v6.exchangerate-api.com/v6/${API_KEY}/latest/USD`
+        );
+        
+        const exchangeRate = response.data.conversion_rates.LKR;
+        if (!exchangeRate) {
+          throw new Error('LKR exchange rate not found');
+        }
+
+        // Calculate total price in LKR for foreign customers
+        const priceInUSD = activity.ForeignPrice * participants;
+        totalPrice = priceInUSD * exchangeRate;
+      } catch (error) {
+        console.error('Exchange rate API error:', error);
+        // Fallback exchange rate if API fails
+        const fallbackRate = 320;
+        totalPrice = activity.ForeignPrice * participants * fallbackRate;
+      }
+    }
+
+    // Validate scheduled date
     const scheduled = new Date(scheduledDate);
     const checkIn = new Date(reservation.CheckInDate);
     const checkOut = new Date(reservation.CheckOutDate);
@@ -158,7 +184,7 @@ const addActivityToReservation = async (req, res) => {
       return res.status(400).json({ error: 'Scheduled date must be within reservation dates' });
     }
 
-    // Insert reservation activity
+    // Insert reservation activity with converted amount
     const [result] = await pool.execute(
       'INSERT INTO reservation_activities (ReservationID, ActivityID, ScheduledDate, Amount, Participants) VALUES (?, ?, ?, ?, ?)',
       [parseInt(reservationId), parseInt(activityId), scheduledDate, parseFloat(totalPrice), parseInt(participants)]
