@@ -21,10 +21,14 @@ import {
   FormControl,
   InputLabel,
   Alert,
-  IconButton
+  IconButton,
+  CircularProgress,
+  TablePagination,
+  Chip
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
+import SearchIcon from '@mui/icons-material/Search';
 import { userService, User, UserCreate, UserUpdate } from '@/app/services/userService';
 
 const AdminUserMGT = () => {
@@ -38,17 +42,25 @@ const AdminUserMGT = () => {
     password: '',
     role: ''
   });
+  const [loading, setLoading] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(5);
 
   useEffect(() => {
     fetchUsers();
   }, []);
 
   const fetchUsers = async () => {
+    setLoading(true);
     try {
       const data = await userService.getAllUsers();
       setUsers(data);
+      setError('');
     } catch (err: any) {
       setError(err.message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -107,16 +119,29 @@ const AdminUserMGT = () => {
     setEditingUser(null);
   };
 
+  const filteredUsers = users.filter(user => 
+    user.Username.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    user.Role.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const getRoleColor = (role: string) => {
+    switch (role.toLowerCase()) {
+      case 'admin': return 'error';
+      case 'reception': return 'primary';
+      case 'restaurant': return 'success';
+      default: return 'default';
+    }
+  };
+
   return (
     <Box sx={{ maxWidth: 1200, mx: 'auto', p: 3 }}>
       <Paper sx={{ p: 3, mb: 4 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
           <Typography variant="h5" gutterBottom>
             User Management
           </Typography>
           <Button
             variant="contained"
-            color="primary"
             onClick={() => {
               resetForm();
               setOpenDialog(true);
@@ -126,42 +151,98 @@ const AdminUserMGT = () => {
           </Button>
         </Box>
 
+        {/* Search Box */}
+        <Box sx={{ mb: 3 }}>
+          <TextField
+            fullWidth
+            variant="outlined"
+            placeholder="Search by username or role..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            InputProps={{
+              startAdornment: <SearchIcon sx={{ mr: 1, color: 'text.secondary' }} />
+            }}
+          />
+        </Box>
+
         {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
         {success && <Alert severity="success" sx={{ mb: 2 }}>{success}</Alert>}
 
         <TableContainer>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>User ID</TableCell>
-                <TableCell>Username</TableCell>
-                <TableCell>Role</TableCell>
-                <TableCell>Actions</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {users.map((user) => (
-                <TableRow key={user.UserID}>
-                  <TableCell>{user.UserID}</TableCell>
-                  <TableCell>{user.Username}</TableCell>
-                  <TableCell>{user.Role}</TableCell>
-                  <TableCell>
-                    <IconButton onClick={() => handleEdit(user)} color="primary">
-                      <EditIcon />
-                    </IconButton>
-                    <IconButton onClick={() => handleDelete(user.UserID)} color="error">
-                      <DeleteIcon />
-                    </IconButton>
-                  </TableCell>
+          {loading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
+              <CircularProgress />
+            </Box>
+          ) : (
+            <Table>
+              <TableHead>
+                <TableRow>
+                  <TableCell>User ID</TableCell>
+                  <TableCell>Username</TableCell>
+                  <TableCell>Role</TableCell>
+                  <TableCell>Actions</TableCell>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHead>
+              <TableBody>
+                {filteredUsers
+                  .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+                  .map((user) => (
+                    <TableRow key={user.UserID}>
+                      <TableCell>{user.UserID}</TableCell>
+                      <TableCell>{user.Username}</TableCell>
+                      <TableCell>
+                        <Chip 
+                          label={user.Role}
+                          color={getRoleColor(user.Role)}
+                          size="small"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <IconButton 
+                          onClick={() => handleEdit(user)} 
+                          color="primary"
+                          title="Edit user"
+                        >
+                          <EditIcon />
+                        </IconButton>
+                        <IconButton 
+                          onClick={() => handleDelete(user.UserID)}
+                          color="error"
+                          title="Delete user"
+                        >
+                          <DeleteIcon />
+                        </IconButton>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+              </TableBody>
+            </Table>
+          )}
         </TableContainer>
+
+        <TablePagination
+          component="div"
+          count={filteredUsers.length}
+          page={page}
+          onPageChange={(_, newPage) => setPage(newPage)}
+          rowsPerPage={rowsPerPage}
+          onRowsPerPageChange={(event) => {
+            setRowsPerPage(parseInt(event.target.value, 10));
+            setPage(0);
+          }}
+        />
       </Paper>
 
-      <Dialog open={openDialog} onClose={() => setOpenDialog(false)}>
-        <DialogTitle>{editingUser ? 'Edit User' : 'Add New User'}</DialogTitle>
+      {/* User Form Dialog */}
+      <Dialog 
+        open={openDialog} 
+        onClose={() => setOpenDialog(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>
+          {editingUser ? 'Edit User' : 'Add New User'}
+        </DialogTitle>
         <DialogContent>
           <Box sx={{ display: 'grid', gap: 2, mt: 2 }}>
             <TextField
@@ -204,14 +285,18 @@ const AdminUserMGT = () => {
               >
                 <MenuItem value="admin">Admin</MenuItem>
                 <MenuItem value="reception">Reception</MenuItem>
-                <MenuItem value="kitchen">Kitchen</MenuItem>
+                <MenuItem value="restaurant">Restaurtant</MenuItem>
               </Select>
             </FormControl>
           </Box>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setOpenDialog(false)}>Cancel</Button>
-          <Button onClick={handleSubmit} variant="contained" color="primary">
+          <Button 
+            onClick={handleSubmit} 
+            variant="contained" 
+            color="primary"
+          >
             {editingUser ? 'Update' : 'Create'}
           </Button>
         </DialogActions>
