@@ -58,6 +58,7 @@ model reservations {
   CreatedAt              DateTime?                 @default(now()) @db.Timestamp(0)
   RoomID                 Int
   extra_charges          extra_charges[]
+  payments               payments[]
   reservation_activities reservation_activities[]
   customers              customers                 @relation(fields: [CustomerID], references: [CustomerID], onDelete: NoAction, onUpdate: NoAction, map: "reservations_ibfk_1")
   rooms                  rooms                     @relation(fields: [RoomID], references: [RoomID], onDelete: NoAction, onUpdate: NoAction, map: "reservations_ibfk_2")
@@ -102,6 +103,66 @@ model reservation_activities {
   @@index([ReservationID], map: "ReservationID")
 }
 
+model menu_categories {
+  CategoryID Int    @id @default(autoincrement())
+  Name       String @db.VarChar(100)
+}
+
+model menu_items {
+  ItemID                 Int                      @id @default(autoincrement())
+  Name                   String                   @db.VarChar(100)
+  Price                  Decimal                  @db.Decimal(10, 2)
+  CategoryID             Int?
+  ImagePath              String?                  @db.VarChar(255)
+  IsActive               Boolean?                 @default(true)
+  restaurant_order_items restaurant_order_items[]
+
+  @@index([CategoryID], map: "CategoryID")
+}
+
+model payments {
+  PaymentID         Int                    @id @default(autoincrement())
+  Amount            Decimal                @db.Decimal(10, 2)
+  PaymentDate       DateTime?              @default(now()) @db.DateTime(0)
+  PaymentMethod     payments_PaymentMethod
+  ReservationID     Int?
+  OrderID           Int?
+  reservations      reservations?          @relation(fields: [ReservationID], references: [ReservationID], onUpdate: NoAction, map: "payments_ibfk_1")
+  restaurant_orders restaurant_orders?     @relation(fields: [OrderID], references: [OrderID], onUpdate: NoAction, map: "payments_ibfk_2")
+
+  @@index([OrderID], map: "OrderID")
+  @@index([ReservationID], map: "ReservationID")
+}
+
+model restaurant_order_items {
+  OrderItemID       Int               @id @default(autoincrement())
+  OrderID           Int
+  ItemID            Int
+  Quantity          Int
+  restaurant_orders restaurant_orders @relation(fields: [OrderID], references: [OrderID], onDelete: Cascade, onUpdate: NoAction, map: "restaurant_order_items_ibfk_1")
+  menu_items        menu_items        @relation(fields: [ItemID], references: [ItemID], onUpdate: NoAction, map: "restaurant_order_items_ibfk_2")
+
+  @@index([ItemID], map: "ItemID")
+  @@index([OrderID], map: "OrderID")
+}
+
+model restaurant_orders {
+  OrderID                Int                      @id @default(autoincrement())
+  OrderDate              DateTime?                @default(now()) @db.DateTime(0)
+  TotalAmount            Decimal                  @db.Decimal(10, 2)
+  payments               payments[]
+  restaurant_order_items restaurant_order_items[]
+}
+
+model users {
+  UserID    Int        @id @default(autoincrement())
+  Username  String     @unique(map: "Username") @db.VarChar(50)
+  Password  String     @db.VarChar(255)
+  Role      users_Role
+  CreatedAt DateTime?  @default(now()) @db.Timestamp(0)
+  UpdatedAt DateTime?  @default(now()) @db.Timestamp(0)
+}
+
 enum customers_Title {
   Mr
   Mrs
@@ -126,4 +187,16 @@ enum reservations_PackageType {
   RoomOnly
   HalfBoard
   FullBoard
+}
+
+enum payments_PaymentMethod {
+  Cash
+  Card
+  Online
+}
+
+enum users_Role {
+  ADMIN
+  RECEPTION
+  RESTAURANT
 }
