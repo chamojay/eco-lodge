@@ -8,7 +8,6 @@ import {
   Typography,
   Button,
   CircularProgress,
-  Modal,
   TextField,
   Select,
   MenuItem,
@@ -28,11 +27,14 @@ import {
   DialogContentText,
   DialogActions,
   Snackbar,
-  Alert
+  Alert,
+  Slide
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { reservationService } from '@/app/services/reservationService';
 import { extraChargesService, ExtraCharge, ExtraChargeType } from '@/app/services/extraChargesService';
+import { activityService, ReservationActivity } from '@/app/services/activityService';
+import styles from '../../styles/checkout.module.css';
 
 interface Reservation {
   ReservationID: string;
@@ -48,42 +50,35 @@ const getCheckoutStatus = (checkoutDate: string): 'today' | 'overdue' | 'future'
   const today = new Date();
   const checkoutMidnight = new Date(checkout.getFullYear(), checkout.getMonth(), checkout.getDate());
   const todayMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-
-  if (checkoutMidnight < todayMidnight) return 'overdue';
-  if (checkoutMidnight.getTime() === todayMidnight.getTime()) return 'today';
-  return 'future';
+  return checkoutMidnight < todayMidnight ? 'overdue' : checkoutMidnight.getTime() === todayMidnight.getTime() ? 'today' : 'future';
 };
 
 const formatAmount = (amount: number | string): string => {
-  const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
-  return !isNaN(numAmount) ? numAmount.toFixed(2) : '0.00';
+  const num = typeof amount === 'string' ? parseFloat(amount) : amount;
+  return isNaN(num) ? '0.00' : num.toFixed(2);
 };
 
 const CheckOutComponent = () => {
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState<string | null>(null);
-  const [openModal, setOpenModal] = useState(false);
-  const [showAddChargeForm, setShowAddChargeForm] = useState(false);
+  const [view, setView] = useState<'list' | 'invoice' | 'addCharge'>('list');
   const [selectedReservation, setSelectedReservation] = useState<Reservation | null>(null);
   const [extraChargeTypes, setExtraChargeTypes] = useState<ExtraChargeType[]>([]);
   const [extraCharges, setExtraCharges] = useState<ExtraCharge[]>([]);
-  const [newCharge, setNewCharge] = useState<ExtraCharge>({
-    ChargeID: 0,
-    Description: '',
-    Amount: 0,
-    ReservationID: 0,
-    TypeID: null
-  });
+  const [activities, setActivities] = useState<ReservationActivity[]>([]);
+  const [newCharge, setNewCharge] = useState<ExtraCharge>({ ChargeID: 0, Description: '', Amount: 0, ReservationID: 0, TypeID: null });
   const [openConfirmDialog, setOpenConfirmDialog] = useState(false);
   const [openSuccessSnackbar, setOpenSuccessSnackbar] = useState(false);
 
   useEffect(() => {
     const fetchInitialData = async () => {
       try {
-        const reservationsData = await reservationService.getActiveReservations();
+        const [reservationsData, typesData] = await Promise.all([
+          reservationService.getActiveReservations(),
+          extraChargesService.getAllTypes()
+        ]);
         setReservations(reservationsData);
-        const typesData = await extraChargesService.getAllTypes();
         setExtraChargeTypes(typesData);
       } catch (error) {
         console.error('Error fetching initial data:', error);
@@ -93,29 +88,28 @@ const CheckOutComponent = () => {
     fetchInitialData();
   }, []);
 
-  const fetchExtraCharges = async (reservationId: string) => {
+  const fetchReservationDetails = async (reservationId: string) => {
     try {
-      const charges = await extraChargesService.getChargesByReservation(Number(reservationId));
+      const [charges, activities] = await Promise.all([
+        extraChargesService.getChargesByReservation(Number(reservationId)),
+        activityService.getActivitiesForReservation(Number(reservationId))
+      ]);
       setExtraCharges(charges);
+      setActivities(activities);
     } catch (error) {
-      console.error('Error fetching extra charges:', error);
+      console.error('Error fetching reservation details:', error);
     }
   };
 
-  const handleOpenModal = async (reservation: Reservation) => {
+  const handleViewInvoice = async (reservation: Reservation) => {
     setSelectedReservation(reservation);
-    await fetchExtraCharges(reservation.ReservationID);
-    setNewCharge({
-      ...newCharge,
-      ReservationID: Number(reservation.ReservationID)
-    });
-    setShowAddChargeForm(false);
-    setOpenModal(true);
+    await fetchReservationDetails(reservation.ReservationID);
+    setNewCharge({ ...newCharge, ReservationID: Number(reservation.ReservationID) });
+    setView('invoice');
   };
 
   const handleAddCharge = async () => {
     if (!selectedReservation || !newCharge.Description || newCharge.Amount <= 0) return;
-
     try {
       await extraChargesService.addCharge({
         ReservationID: Number(selectedReservation.ReservationID),
@@ -123,16 +117,9 @@ const CheckOutComponent = () => {
         Description: newCharge.Description,
         Amount: Number(newCharge.Amount)
       });
-      
-      await fetchExtraCharges(selectedReservation.ReservationID);
-      setNewCharge({
-        ChargeID: 0,
-        Description: '',
-        Amount: 0,
-        ReservationID: Number(selectedReservation.ReservationID),
-        TypeID: null
-      });
-      setShowAddChargeForm(false);
+      await fetchReservationDetails(selectedReservation.ReservationID);
+      setNewCharge({ ChargeID: 0, Description: '', Amount: 0, ReservationID: Number(selectedReservation.ReservationID), TypeID: null });
+      setView('invoice');
     } catch (error) {
       console.error('Error adding charge:', error);
     }
@@ -141,36 +128,22 @@ const CheckOutComponent = () => {
   const handleRemoveCharge = async (chargeId: number) => {
     try {
       await extraChargesService.deleteCharge(chargeId);
-      if (selectedReservation) {
-        await fetchExtraCharges(selectedReservation.ReservationID);
-      }
+      selectedReservation && await fetchReservationDetails(selectedReservation.ReservationID);
     } catch (error) {
       console.error('Error removing charge:', error);
     }
   };
 
-  const handleOpenConfirmDialog = () => {
-    setOpenConfirmDialog(true);
-  };
-
-  const handleCloseConfirmDialog = () => {
-    setOpenConfirmDialog(false);
-  };
-
-  const handleCloseSuccessSnackbar = () => {
-    setOpenSuccessSnackbar(false);
-  };
-
   const handleCompleteCheckout = async () => {
     if (!selectedReservation) return;
-
     setProcessing(selectedReservation.ReservationID);
     try {
       await reservationService.completeCheckout(selectedReservation.ReservationID);
       setReservations(reservations.filter(r => r.ReservationID !== selectedReservation.ReservationID));
-      setOpenModal(false);
+      setView('list');
       setSelectedReservation(null);
       setExtraCharges([]);
+      setActivities([]);
       setOpenConfirmDialog(false);
       setOpenSuccessSnackbar(true);
     } catch (error) {
@@ -181,198 +154,155 @@ const CheckOutComponent = () => {
 
   const totalInvoice = (
     (selectedReservation?.TotalAmount || 0) +
-    extraCharges.reduce((sum, charge) => {
-      const amount = typeof charge.Amount === 'string' ? parseFloat(charge.Amount) : charge.Amount;
-      return sum + (isNaN(amount) ? 0 : amount);
-    }, 0)
-  );
+    extraCharges.reduce((sum, charge) => sum + (typeof charge.Amount === 'string' ? parseFloat(charge.Amount) : charge.Amount) || 0, 0) +
+    activities.reduce((sum, activity) => sum + (typeof activity.Amount === 'string' ? parseFloat(activity.Amount) : activity.Amount) || 0, 0)
+  ).toFixed(2);
 
   return (
-    <Box sx={{ maxWidth: 800, margin: 'auto', p: 3 }}>
-      <Typography variant="h5" gutterBottom sx={{ color: '#1a472a' }}>
-        Active Reservations
-      </Typography>
-
-      {loading ? (
-        <CircularProgress />
-      ) : reservations.length === 0 ? (
-        <Typography>No active reservations</Typography>
-      ) : (
-        <List>
-          {reservations.map((res) => {
-            const status = getCheckoutStatus(res.CheckOutDate);
-            return (
-              <ListItem
-                key={res.ReservationID}
-                sx={{
-                  borderBottom: '1px solid #eee',
-                  display: 'flex',
-                  justifyContent: 'space-between'
-                }}
-              >
-                <ListItemText
-                  primary={`${res.FirstName} ${res.LastName}`}
-                  secondary={`Room ${res.RoomNumber} - Checkout: ${new Date(res.CheckOutDate).toLocaleDateString()}`}
-                />
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                  {status === 'today' && (
-                    <Typography sx={{ color: '#ffd700', fontWeight: 'bold' }}>
-                      Checkout today
-                    </Typography>
-                  )}
-                  {status === 'overdue' && (
-                    <Typography sx={{ color: '#dc3545', fontWeight: 'bold' }}>
-                      Checkout overdue
-                    </Typography>
-                  )}
-                  <Button
-                    variant="contained"
-                    onClick={() => handleOpenModal(res)}
-                    disabled={processing === res.ReservationID}
-                    sx={{
-                      backgroundColor:
-                        status === 'overdue' ? '#dc3545' :
-                        status === 'today' ? '#ffd700' :
-                        '#1a472a',
-                      color:
-                        status === 'overdue' || status === 'today' ? 'black' : 'white',
-                      '&:hover': {
-                        backgroundColor:
-                          status === 'overdue' ? '#bb2d3b' :
-                          status === 'today' ? '#ffc107' :
-                          '#2e7d32'
-                      },
-                      minWidth: 160
-                    }}
+    <Box sx={{ maxWidth: 800, mx: 'auto', p: 3, bgcolor: '#f9fafb', minHeight: '100vh' }}>
+      <Slide direction="right" in={view === 'list'} mountOnEnter unmountOnExit>
+        <Box className={styles.reservationList}>
+          <Typography variant="h5" sx={{ color: '#1a472a', mb: 3, fontWeight: 600 }}>
+            Active Reservations
+          </Typography>
+          {loading ? (
+            <CircularProgress />
+          ) : reservations.length === 0 ? (
+            <Typography color="text.secondary">No active reservations</Typography>
+          ) : (
+            <List sx={{ bgcolor: 'white', borderRadius: 2, boxShadow: 1 }}>
+              {reservations.map(res => {
+                const status = getCheckoutStatus(res.CheckOutDate);
+                return (
+                  <ListItem
+                    key={res.ReservationID}
+                    sx={{ borderBottom: '1px solid #eee', py: 2 }}
+                    secondaryAction={
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                        {status === 'today' && <Typography className={styles.statusToday}>Checkout today</Typography>}
+                        {status === 'overdue' && <Typography className={styles.statusOverdue}>Checkout overdue</Typography>}
+                        <Button
+                          className={styles.buttonPrimary}
+                          onClick={() => handleViewInvoice(res)}
+                          disabled={processing === res.ReservationID}
+                          sx={{ minWidth: 140 }}
+                        >
+                          {processing === res.ReservationID ? <CircularProgress size={24} /> : 'Process Checkout'}
+                        </Button>
+                      </Box>
+                    }
                   >
-                    {processing === res.ReservationID ? <CircularProgress size={24} /> : 'Process Checkout'}
-                  </Button>
-                </Box>
-              </ListItem>
-            );
-          })}
-        </List>
-      )}
+                    <ListItemText
+                      primary={`${res.FirstName} ${res.LastName}`}
+                      secondary={`Room ${res.RoomNumber} - Checkout: ${new Date(res.CheckOutDate).toLocaleDateString()}`}
+                    />
+                  </ListItem>
+                );
+              })}
+            </List>
+          )}
+        </Box>
+      </Slide>
 
-      <Modal
-        open={openModal}
-        onClose={() => setOpenModal(false)}
-        sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-      >
-        <Box sx={{
-          bgcolor: 'white',
-          p: 4,
-          borderRadius: 2,
-          maxWidth: 600,
-          width: '100%',
-          maxHeight: '80vh',
-          overflowY: 'auto'
-        }}>
-          <Typography variant="h6" gutterBottom>
+      <Slide direction="left" in={view === 'invoice' || view === 'addCharge'} mountOnEnter unmountOnExit>
+        <Box className={styles.invoicePage}>
+          <Typography variant="h6" sx={{ color: '#1a472a', mb: 2, fontWeight: 600 }}>
             Checkout for {selectedReservation?.FirstName} {selectedReservation?.LastName}
           </Typography>
 
-          {!showAddChargeForm ? (
+          {view === 'invoice' ? (
             <>
-              <Typography variant="subtitle1" gutterBottom>
-                Invoice Details
-              </Typography>
-              <TableContainer component={Paper}>
+              <Typography variant="subtitle1" sx={{ mb: 2, color: '#374151' }}>Invoice Details</Typography>
+              <TableContainer component={Paper} sx={{ mb: 3, boxShadow: 'none', border: '1px solid #e5e7eb' }}>
                 <Table>
                   <TableHead>
-                    <TableRow>
+                    <TableRow sx={{ bgcolor: '#f3f4f6' }}>
                       <TableCell>Type</TableCell>
                       <TableCell>Description</TableCell>
                       <TableCell align="right">Amount</TableCell>
-                      <TableCell align="right">Action</TableCell>
+                      <TableCell align="right"></TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {selectedReservation?.TotalAmount !== undefined && (
-                      <TableRow>
-                        <TableCell>Room Charges</TableCell>
-                        <TableCell>Base reservation cost</TableCell>
-                        <TableCell align="right">
-                          LKR {selectedReservation.TotalAmount.toFixed(2)}
+                    <TableRow>
+                      <TableCell>Room Charges</TableCell>
+                      <TableCell>Base reservation cost</TableCell>
+                      <TableCell align="right">LKR {formatAmount(selectedReservation?.TotalAmount)}</TableCell>
+                      <TableCell></TableCell>
+                    </TableRow>
+                    {activities.map(activity => (
+                      <TableRow key={`activity-${activity.ReservationActivityID}`}>
+                        <TableCell>Activity</TableCell>
+                        <TableCell>
+                          {activity.Name} ({activity.Participants} participants)
+                          <Typography variant="caption" display="block" color="text.secondary">
+                            {new Date(activity.ScheduledDate).toLocaleDateString()}
+                          </Typography>
                         </TableCell>
+                        <TableCell align="right">LKR {formatAmount(activity.Amount)}</TableCell>
                         <TableCell></TableCell>
                       </TableRow>
-                    )}
-                    {extraCharges.map((charge) => (
+                    ))}
+                    {extraCharges.map(charge => (
                       <TableRow key={charge.ChargeID}>
                         <TableCell>{charge.TypeName || 'Custom'}</TableCell>
                         <TableCell>{charge.Description}</TableCell>
+                        <TableCell align="right">LKR {formatAmount(charge.Amount)}</TableCell>
                         <TableCell align="right">
-                          LKR {formatAmount(charge.Amount)}
-                        </TableCell>
-                        <TableCell align="right">
-                          <IconButton
-                            color="error"
-                            onClick={() => handleRemoveCharge(charge.ChargeID)}
-                          >
+                          <IconButton color="error" onClick={() => handleRemoveCharge(charge.ChargeID)}>
                             <DeleteIcon />
                           </IconButton>
                         </TableCell>
                       </TableRow>
                     ))}
                     <TableRow>
-                      <TableCell colSpan={3}><strong>Grand Total</strong></TableCell>
-                      <TableCell align="right"><strong>LKR {totalInvoice.toFixed(2)}</strong></TableCell>
+                      <TableCell colSpan={2}><strong>Grand Total</strong></TableCell>
+                      <TableCell align="right"><strong>LKR {totalInvoice}</strong></TableCell>
+                      <TableCell></TableCell>
                     </TableRow>
                   </TableBody>
                 </Table>
               </TableContainer>
-
-              <Box sx={{ mt: 3, display: 'flex', justifyContent: 'space-between', gap: 2 }}>
-                <Button
-                  variant="contained"
-                  onClick={() => setShowAddChargeForm(true)}
-                >
-                  Add Extra Charges
+              <Box sx={{ display: 'flex', gap: 2, justifyContent: 'space-between' }}>
+                <Button className={styles.buttonPrimary} onClick={() => setView('addCharge')}>
+                  Add Extra Charge
                 </Button>
                 <Box sx={{ display: 'flex', gap: 2 }}>
-                  <Button
-                    variant="outlined"
-                    onClick={() => setOpenModal(false)}
-                  >
-                    Cancel
+                  <Button variant="outlined" onClick={() => setView('list')}>
+                    Back
                   </Button>
                   <Button
-                    variant="contained"
-                    onClick={handleOpenConfirmDialog}
+                    className={styles.buttonPrimary}
+                    onClick={() => setOpenConfirmDialog(true)}
                     disabled={processing === selectedReservation?.ReservationID}
                   >
-                    {processing === selectedReservation?.ReservationID ? (
-                      <CircularProgress size={24} />
-                    ) : (
-                      'Proceed to Checkout'
-                    )}
+                    {processing === selectedReservation?.ReservationID ? <CircularProgress size={24} /> : 'Proceed to Checkout'}
                   </Button>
                 </Box>
               </Box>
             </>
           ) : (
-            <Box sx={{ mt: 2, mb: 3 }}>
-              <Typography variant="subtitle1">Add Extra Charge</Typography>
-              <FormControl fullWidth sx={{ mt: 2 }}>
+            <Box sx={{ mt: 2 }}>
+              <Typography variant="subtitle1" sx={{ mb: 2, color: '#374151' }}>Add Extra Charge</Typography>
+              <FormControl fullWidth sx={{ mb: 2 }}>
                 <InputLabel>Charge Type</InputLabel>
                 <Select
                   value={newCharge.TypeID || ''}
-                  onChange={(e) => {
+                  onChange={e => {
                     const typeID = Number(e.target.value);
-                    const selectedType = extraChargeTypes.find(t => t.TypeID === typeID);
+                    const type = extraChargeTypes.find(t => t.TypeID === typeID);
                     setNewCharge({
                       ...newCharge,
                       TypeID: typeID || null,
-                      Amount: selectedType ? selectedType.DefaultAmount : newCharge.Amount,
-                      Description: selectedType ? selectedType.Name : newCharge.Description
+                      Amount: type?.DefaultAmount || newCharge.Amount,
+                      Description: type?.Name || newCharge.Description
                     });
                   }}
                 >
                   <MenuItem value="">Custom Charge</MenuItem>
-                  {extraChargeTypes.map((type) => (
+                  {extraChargeTypes.map(type => (
                     <MenuItem key={type.TypeID} value={type.TypeID}>
-                      {type.Name} (LKR {type.DefaultAmount})
+                      {type.Name} (LKR {formatAmount(type.DefaultAmount)})
                     </MenuItem>
                   ))}
                 </Select>
@@ -381,29 +311,23 @@ const CheckOutComponent = () => {
                 fullWidth
                 label="Description"
                 value={newCharge.Description}
-                onChange={(e) => setNewCharge({ ...newCharge, Description: e.target.value })}
-                sx={{ mt: 2 }}
+                onChange={e => setNewCharge({ ...newCharge, Description: e.target.value })}
+                sx={{ mb: 2 }}
               />
               <TextField
                 fullWidth
                 label="Amount"
                 type="number"
                 value={newCharge.Amount}
-                onChange={(e) => setNewCharge({ 
-                  ...newCharge, 
-                  Amount: parseFloat(e.target.value) || 0 
-                })}
-                sx={{ mt: 2 }}
+                onChange={e => setNewCharge({ ...newCharge, Amount: parseFloat(e.target.value) || 0 })}
+                sx={{ mb: 3 }}
               />
-              <Box sx={{ mt: 3, display: 'flex', justifyContent: 'space-between', gap: 2 }}>
-                <Button
-                  variant="outlined"
-                  onClick={() => setShowAddChargeForm(false)}
-                >
+              <Box sx={{ display: 'flex', gap: 2, justifyContent: 'space-between' }}>
+                <Button variant="outlined" onClick={() => setView('invoice')}>
                   Back
                 </Button>
                 <Button
-                  variant="contained"
+                  className={styles.buttonPrimary}
                   onClick={handleAddCharge}
                   disabled={!newCharge.Description || newCharge.Amount <= 0}
                 >
@@ -413,38 +337,33 @@ const CheckOutComponent = () => {
             </Box>
           )}
         </Box>
-      </Modal>
+      </Slide>
 
-      <Dialog
-        open={openConfirmDialog}
-        onClose={handleCloseConfirmDialog}
-        aria-labelledby="confirm-checkout-title"
-        aria-describedby="confirm-checkout-description"
-      >
-        <DialogTitle id="confirm-checkout-title">
-          Confirm Checkout
-        </DialogTitle>
+      <Dialog open={openConfirmDialog} onClose={() => setOpenConfirmDialog(false)}>
+        <DialogTitle>Confirm Checkout</DialogTitle>
         <DialogContent>
-          <DialogContentText id="confirm-checkout-description">
-            Are you sure you want to complete the checkout for {selectedReservation?.FirstName} {selectedReservation?.LastName}?
-            The total amount due is LKR {totalInvoice.toFixed(2)}.
+          <DialogContentText>
+            Checkout Summary for {selectedReservation?.FirstName} {selectedReservation?.LastName}:
+            <Box component="ul" sx={{ mt: 1, pl: 2 }}>
+              <li>Room Charges: LKR {formatAmount(selectedReservation?.TotalAmount)}</li>
+              {activities.length > 0 && (
+                <li>Activity Charges: LKR {formatAmount(activities.reduce((sum, a) => sum + Number(a.Amount), 0))}</li>
+              )}
+              {extraCharges.length > 0 && (
+                <li>Extra Charges: LKR {formatAmount(extraCharges.reduce((sum, c) => sum + Number(c.Amount), 0))}</li>
+              )}
+              <li><strong>Total Amount Due: LKR {totalInvoice}</strong></li>
+            </Box>
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleCloseConfirmDialog} color="primary">
-            Cancel
-          </Button>
+          <Button onClick={() => setOpenConfirmDialog(false)}>Cancel</Button>
           <Button
+            className={styles.buttonPrimary}
             onClick={handleCompleteCheckout}
-            color="primary"
-            variant="contained"
             disabled={processing === selectedReservation?.ReservationID}
           >
-            {processing === selectedReservation?.ReservationID ? (
-              <CircularProgress size={24} />
-            ) : (
-              'Confirm Checkout'
-            )}
+            {processing === selectedReservation?.ReservationID ? <CircularProgress size={24} /> : 'Confirm Checkout'}
           </Button>
         </DialogActions>
       </Dialog>
@@ -452,14 +371,10 @@ const CheckOutComponent = () => {
       <Snackbar
         open={openSuccessSnackbar}
         autoHideDuration={6000}
-        onClose={handleCloseSuccessSnackbar}
+        onClose={() => setOpenSuccessSnackbar(false)}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
       >
-        <Alert
-          onClose={handleCloseSuccessSnackbar}
-          severity="success"
-          sx={{ width: '100%' }}
-        >
+        <Alert severity="success" onClose={() => setOpenSuccessSnackbar(false)}>
           Checkout completed successfully for {selectedReservation?.FirstName} {selectedReservation?.LastName}!
         </Alert>
       </Snackbar>
