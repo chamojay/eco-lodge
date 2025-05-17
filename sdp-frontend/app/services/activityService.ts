@@ -108,11 +108,21 @@ export const activityService = {
     }
   },
 
-   addActivityToReservation: async (data: ReservationActivityCreate): Promise<{ id: number }> => {
+  addActivityToReservation: async (data: ReservationActivityCreate): Promise<{ id: number }> => {
     try {
-      const response = await axios.post<ReservationActivity>(`${API_URL}/reservation`, data);
+      const payload = {
+        reservationId: data.reservationId,
+        activityId: data.activityId,
+        scheduledDate: data.scheduledDate,
+        participants: data.participants
+      };
+      
+      const response = await axios.post<ReservationActivity>(`${API_URL}/reservation`, payload);
       return { id: response.data.ReservationActivityID };
     } catch (error) {
+      if (axios.isAxiosError(error) && error.response) {
+        throw new Error(error.response.data.error || 'Failed to add reservation activity');
+      }
       throw new Error(`Failed to add reservation activity: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   },

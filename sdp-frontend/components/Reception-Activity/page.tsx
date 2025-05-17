@@ -50,43 +50,19 @@ const ReceptionActivity = () => {
 
     const handleAddActivity = async () => {
         try {
-            console.log('Form data before submission:', activityForm);
-
-            // Validate form fields
             const { reservationId, activityId, scheduledDate, participants } = activityForm;
-            const missingFields = [];
-            if (!reservationId) missingFields.push('Reservation ID');
-            if (!activityId) missingFields.push('Activity');
-            if (!scheduledDate) missingFields.push('Date');
-            if (!participants) missingFields.push('Participants');
             
-            if (missingFields.length > 0) {
-                return setError(`Missing required fields: ${missingFields.join(', ')}`);
+            // Validation checks
+            if (!reservationId || !activityId || !scheduledDate || !participants) {
+                return setError('All fields are required');
             }
 
-            // Convert values to numbers
-            const reservationIdNum = Number(reservationId);
-            const activityIdNum = Number(activityId);
-            const participantsNum = Number(participants);
-
-            // Validate numeric values
-            if (isNaN(reservationIdNum)) return setError('Invalid Reservation ID');
-            if (isNaN(activityIdNum)) return setError('Invalid Activity selected');
-            if (isNaN(participantsNum) || participantsNum < 1) {
-                return setError('Participants must be at least 1');
-            }
-
-            // Find selected activity
-            const selectedActivity = allActivities.find(a => a.ActivityID === activityIdNum);
-            if (!selectedActivity) return setError('Selected activity not found');
-
-            // Create payload with proper data types
+            // Create payload with correct property names
             const payload = {
-                ReservationID: reservationIdNum,
-                ActivityID: activityIdNum,
-                ScheduledDate: new Date(scheduledDate).toISOString().split('T')[0],
-                Participants: participantsNum,
-                Amount: parseFloat((selectedActivity.LocalPrice * participantsNum).toFixed(2))
+                reservationId: parseInt(reservationId),
+                activityId: parseInt(activityId),
+                scheduledDate: scheduledDate,
+                participants: parseInt(participants)
             };
 
             console.log('Submitting payload:', payload);
@@ -103,13 +79,7 @@ const ReceptionActivity = () => {
             }));
             fetchReservationActivities();
         } catch (err: any) {
-            let errorMessage = 'Failed to add activity';
-            if (err.response) {
-                // Handle API validation errors
-                errorMessage = err.response.data?.message || 
-                             err.response.data?.error ||
-                             `Server error: ${err.response.status}`;
-            }
+            const errorMessage = err.message || 'Failed to add activity';
             setError(errorMessage);
             setSuccess('');
         }
