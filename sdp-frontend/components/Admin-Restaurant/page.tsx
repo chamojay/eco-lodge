@@ -138,11 +138,14 @@ const Adminrestaurant = () => {
     const handleDeleteMenuItem = async (itemId: number) => {
         if (window.confirm('Are you sure you want to delete this menu item?')) {
             try {
-                await axios.delete(`http://localhost:5000/api/menu/items/${itemId}`);
-                setSuccess('Menu item deleted successfully');
+                const response = await axios.delete(`http://localhost:5000/api/menu/items/${itemId}`);
+                setSuccess(response.data.message);
                 fetchData();
-            } catch (error) {
-                setError('Failed to delete menu item');
+            } catch (error: any) {
+                setError(
+                    error.response?.data?.error || 
+                    'Failed to delete menu item'
+                );
             }
         }
     };

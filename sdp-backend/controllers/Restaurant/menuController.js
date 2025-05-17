@@ -3,7 +3,9 @@ const pool = require('../../config/db');
 const menuController = {
     getMenuItems: async (req, res) => {
         try {
-            const [items] = await pool.query('SELECT * FROM menu_items');
+            const [items] = await pool.query(
+                'SELECT * FROM menu_items WHERE IsActive = 1 OR IsActive IS NULL'
+            );
             res.json(items);
         } catch (error) {
             res.status(500).json({ error: error.message });
@@ -79,10 +81,15 @@ const menuController = {
             const { id } = req.params;
             
             // First check if item exists
-            const [item] = await pool.query('SELECT * FROM menu_items WHERE ItemID = ?', [id]);
+            const [items] = await pool.query(
+                'SELECT * FROM menu_items WHERE ItemID = ?', 
+                [id]
+            );
             
-            if (!item.length) {
-                return res.status(404).json({ error: 'Menu item not found' });
+            if (items.length === 0) {
+                return res.status(404).json({ 
+                    error: 'Menu item not found' 
+                });
             }
 
             // Check if item is referenced in any orders
@@ -92,11 +99,17 @@ const menuController = {
             );
 
             if (orderItems.length > 0) {
-                return res.status(400).json({ 
-                    error: 'Cannot delete menu item as it is referenced in orders'
+                // Instead of preventing deletion, mark the item as inactive
+                await pool.query(
+                    'UPDATE menu_items SET IsActive = 0 WHERE ItemID = ?',
+                    [id]
+                );
+                return res.json({ 
+                    message: 'Menu item marked as inactive' 
                 });
             }
 
+            // If not referenced in orders, delete completely
             await pool.query('DELETE FROM menu_items WHERE ItemID = ?', [id]);
             res.json({ message: 'Menu item deleted successfully' });
         } catch (error) {
