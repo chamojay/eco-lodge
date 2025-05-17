@@ -13,6 +13,7 @@ import AdminRooms from '@/components/Admin-Rooms/page';
 import AdminExtraCharges from '@/components/Admin-Extracharges/page';
 import AdminActivity from '@/components/Admin-Activity/page';
 import AdminRestaurant from '@/components/Admin-Restaurant/page';
+import AdminUserMGT from '@/components/Admin-UserMGT/page';
 
 type MenuItemType = {
   id: string;
@@ -76,6 +77,8 @@ const AdminDashboard: React.FC = () => {
         return <AdminActivity />;
       case'restaurant':
         return <AdminRestaurant />;
+      case 'users':
+        return <AdminUserMGT />;
       default:
         return (
           <Box sx={{ p: 3 }}>

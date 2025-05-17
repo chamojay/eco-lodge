@@ -1,7 +1,6 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const userRoutes = require('./routes/userRoutes');
 const roomRoutes = require('./routes/roomRoutes');
 const reservationRoutes = require('./routes/reservationRoutes');
 const reservationTableRoutes = require('./routes/reservationtableRoutes');
@@ -12,6 +11,7 @@ const menuRoutes = require('./routes/Restaurant/menuRoutes');
 const orderRoutes = require('./routes/Restaurant/orderRoutes');
 const paymentRoutes = require('./routes/Restaurant/paymentRoutes');
 const authRoutes = require('./routes/authRoutes');
+const userRoutes = require('./routes/userRoutes');
 const app = express();
 const port = 5000;
 
