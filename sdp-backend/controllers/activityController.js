@@ -184,11 +184,22 @@ const addActivityToReservation = async (req, res) => {
 const getActivitiesForReservation = async (req, res) => {
   try {
     const { reservationId } = req.params;
-    const [rows] = await pool.execute(
-      'SELECT ra.*, a.Name, a.Description, a.LocalPrice, a.ForeignPrice FROM reservation_activities ra JOIN activities a ON ra.ActivityID = a.ActivityID WHERE ra.ReservationID = ?',
-      [parseInt(reservationId)]
-    );
-
+    const query = `
+      SELECT 
+        ra.*,
+        a.Name,
+        a.Description,
+        a.LocalPrice,
+        a.ForeignPrice,
+        c.Country
+      FROM reservation_activities ra 
+      JOIN activities a ON ra.ActivityID = a.ActivityID 
+      JOIN reservations r ON ra.ReservationID = r.ReservationID
+      JOIN customers c ON r.CustomerID = c.CustomerID
+      WHERE ra.ReservationID = ?
+    `;
+    
+    const [rows] = await pool.execute(query, [parseInt(reservationId)]);
     res.status(200).json(rows);
   } catch (error) {
     console.error(error);

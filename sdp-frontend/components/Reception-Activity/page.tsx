@@ -59,6 +59,9 @@ const ReceptionActivity = () => {
     participants: '1',
   });
 
+  const [isLocalCustomer, setIsLocalCustomer] = useState<boolean>(true);
+  const [customerCountry, setCustomerCountry] = useState<string>('');
+
   useEffect(() => {
     const loadAllActivities = async () => {
       try {
@@ -71,10 +74,28 @@ const ReceptionActivity = () => {
     loadAllActivities();
   }, []);
 
+  const checkCustomerNationality = async (reservationId: string) => {
+    try {
+      const response = await fetch(
+        `http://localhost:5000/api/reservations/${reservationId}/customer`
+      );
+      const data = await response.json();
+      const isLocal = data.Country?.toLowerCase() === 'sri lanka';
+      setIsLocalCustomer(isLocal);
+      setCustomerCountry(data.Country || '');
+    } catch (err) {
+      console.error('Failed to fetch customer details:', err);
+      setIsLocalCustomer(true);
+    }
+  };
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    console.log(`Input changed: ${name} = ${value}`);
     setActivityForm({ ...activityForm, [name]: value });
+    
+    if (name === 'reservationId' && value) {
+      checkCustomerNationality(value);
+    }
   };
 
   const fetchReservationActivities = async () => {
@@ -156,9 +177,9 @@ const ReceptionActivity = () => {
                     {activity.Description || 'No description'}
                   </TableCell>
                   <TableCell align="right">
-                    {Number(activity.LocalPrice).toLocaleString('en-US', {
+                    {Number(activity.LocalPrice).toLocaleString('si-LK', {
                       style: 'currency',
-                      currency: 'USD',
+                      currency: 'LKR',
                     })}
                   </TableCell>
                   <TableCell align="right">
@@ -189,6 +210,13 @@ const ReceptionActivity = () => {
             fullWidth
             InputProps={{ inputProps: { min: 1 } }}
           />
+          <Box sx={{ width: '100%', mt: 1 }}>
+            {activityForm.reservationId && customerCountry && (
+              <Typography variant="caption" color="text.secondary">
+                Customer from: {customerCountry} ({isLocalCustomer ? 'Local rates - LKR' : 'Foreign rates - USD'})
+              </Typography>
+            )}
+          </Box>
           <FormControl fullWidth>
             <InputLabel>Select Activity</InputLabel>
             <Select
@@ -276,27 +304,46 @@ const ReceptionActivity = () => {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {activities.map(activity => (
-                  <TableRow key={activity.ReservationActivityID} hover>
-                    <TableCell>{activity.Name}</TableCell>
-                    <TableCell>
-                      {new Date(activity.ScheduledDate).toLocaleDateString()}
-                    </TableCell>
-                    <TableCell align="right">{activity.Participants}</TableCell>
-                    <TableCell align="right">
-                      {Number(activity.Amount / activity.Participants).toLocaleString('en-US', {
-                        style: 'currency',
-                        currency: 'USD',
-                      })}
-                    </TableCell>
-                    <TableCell align="right">
-                      {Number(activity.Amount).toLocaleString('en-US', {
-                        style: 'currency',
-                        currency: 'USD',
-                      })}
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {activities.map(activity => {
+                  const isLocalCustomer = activity.Country?.toLowerCase() === 'sri lanka';
+                  const unitPrice = isLocalCustomer ? 
+                    activity.LocalPrice : 
+                    activity.ForeignPrice;
+                
+                  return (
+                    <TableRow key={activity.ReservationActivityID} hover>
+                      <TableCell>{activity.Name}</TableCell>
+                      <TableCell>
+                        {new Date(activity.ScheduledDate).toLocaleDateString()}
+                      </TableCell>
+                      <TableCell align="right">{activity.Participants}</TableCell>
+                      <TableCell align="right">
+                        {isLocalCustomer 
+                          ? Number(activity.Amount / activity.Participants).toLocaleString('si-LK', {
+                              style: 'currency',
+                              currency: 'LKR',
+                            })
+                          : Number(activity.Amount / activity.Participants).toLocaleString('en-US', {
+                              style: 'currency',
+                              currency: 'USD',
+                            })
+                        }
+                      </TableCell>
+                      <TableCell align="right">
+                        {isLocalCustomer
+                          ? Number(activity.Amount).toLocaleString('si-LK', {
+                              style: 'currency',
+                              currency: 'LKR',
+                            })
+                          : Number(activity.Amount).toLocaleString('en-US', {
+                              style: 'currency',
+                              currency: 'USD',
+                            })
+                        }
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </TableContainer>

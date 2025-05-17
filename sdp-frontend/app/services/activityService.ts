@@ -13,13 +13,16 @@ export interface Activity {
 
 export interface ReservationActivity {
   ReservationActivityID: number;
-  reservationId: number;
-  activityId: number;
-  scheduledDate: string;
-  amount: number;
-  participants: number;
-  name?: string;
-  description?: string | null;
+  ReservationID: number;
+  ActivityID: number;
+  ScheduledDate: string;
+  Amount: number;
+  Participants: number;
+  Name?: string;
+  Description?: string | null;
+  LocalPrice?: number;
+  ForeignPrice?: number;
+  Country?: string;
 }
 
 export interface ActivityCreate {
