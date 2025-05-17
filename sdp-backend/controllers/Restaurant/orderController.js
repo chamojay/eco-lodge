@@ -23,8 +23,34 @@ const orderController = {
     },
 
     getOrders: async (req, res) => {
-        const [orders] = await pool.query('SELECT * FROM restaurant_orders ORDER BY OrderDate DESC');
-        res.json(orders);
+        try {
+            const [orders] = await pool.query(`
+                SELECT 
+                    o.*,
+                    GROUP_CONCAT(
+                        JSON_OBJECT(
+                            'ItemID', oi.ItemID,
+                            'Name', mi.Name,
+                            'Quantity', oi.Quantity,
+                            'Price', mi.Price
+                        )
+                    ) as items
+                FROM restaurant_orders o
+                LEFT JOIN restaurant_order_items oi ON o.OrderID = oi.OrderID
+                LEFT JOIN menu_items mi ON oi.ItemID = mi.ItemID
+                GROUP BY o.OrderID
+                ORDER BY o.OrderDate DESC
+            `);
+
+            // Parse the concatenated JSON string back into an array
+            orders.forEach(order => {
+                order.items = order.items ? JSON.parse(`[${order.items}]`) : [];
+            });
+
+            res.json(orders);
+        } catch (error) {
+            res.status(500).json({ error: error.message });
+        }
     }
 };
 

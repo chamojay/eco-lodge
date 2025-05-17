@@ -12,6 +12,7 @@ import {
 import AdminRooms from '@/components/Admin-Rooms/page';
 import AdminExtraCharges from '@/components/Admin-Extracharges/page';
 import AdminActivity from '@/components/Admin-Activity/page';
+import AdminRestaurant from '@/components/Admin-Restaurant/page';
 
 type MenuItemType = {
   id: string;
@@ -61,6 +62,7 @@ const AdminDashboard: React.FC = () => {
     { id: 'reservations', label: 'Reservations', icon: <CalendarToday /> },
     { id: 'extra-charges', label: 'Extra Charges', icon: <Assessment /> },
     { id: 'activities', label: 'Activities', icon: <Assessment /> },
+    { id: 'restaurant', label: 'Restaurant Management', icon: <Restaurant /> },
     { id: 'reports', label: 'Reports', icon: <Assessment /> },
   ];
 
@@ -72,6 +74,8 @@ const AdminDashboard: React.FC = () => {
         return <AdminExtraCharges />;
       case'activities':
         return <AdminActivity />;
+      case'restaurant':
+        return <AdminRestaurant />;
       default:
         return (
           <Box sx={{ p: 3 }}>
