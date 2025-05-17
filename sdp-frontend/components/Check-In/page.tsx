@@ -128,9 +128,17 @@ const CheckInComponent = () => {
   useEffect(() => {
     const fetchExchangeRate = async () => {
       try {
-        const response = await axios.get('https://open.er-api.com/v6/latest/USD');
-        const data = response.data as { rates: { [key: string]: number } };
-        const rate = data.rates?.LKR;
+        const API_KEY = 'd46d62b08eb9229e97a8cf52';
+        const response = await axios.get(
+          `https://v6.exchangerate-api.com/v6/${API_KEY}/latest/USD`
+        );
+        
+        // Add this inside the try block of fetchExchangeRate for debugging
+        console.log('Exchange Rate Response:', response.data);
+
+        const data = response.data;
+        const rate = data.conversion_rates?.LKR;
+        
         if (!rate) {
           throw new Error('LKR rate not found in response');
         }
@@ -138,8 +146,9 @@ const CheckInComponent = () => {
         setConversionError(null);
       } catch (error: any) {
         console.error('Error fetching exchange rate:', error);
-        setConversionError(`Unable to fetch exchange rate: ${error.message}. Using fallback rate.`);
-        setExchangeRate(320);
+        const errorMessage = error.response?.data?.error || error.message;
+        setConversionError(`Unable to fetch exchange rate: ${errorMessage}. Using fallback rate.`);
+        setExchangeRate(320); // Fallback rate
       }
     };
 
