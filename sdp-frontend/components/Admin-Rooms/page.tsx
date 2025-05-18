@@ -4,14 +4,24 @@ import {
   Box, Typography, Button, TextField, Select, MenuItem, 
   Dialog, DialogTitle, DialogContent, DialogActions, InputAdornment 
 } from '@mui/material';
-import { Add, Search } from '@mui/icons-material';
+import { Add, Search, Settings } from '@mui/icons-material';
 import {
   MaterialReactTable,
   useMaterialReactTable,
   type MRT_ColumnDef,
 } from 'material-react-table';
-import { getRooms, createRoom, updateRoom, deleteRoom } from '@/app/services/roomService';
-import { getRoomTypes } from '@/app/services/roomTypeService';
+import { 
+  getRooms, 
+  createRoom, 
+  updateRoom, 
+  deleteRoom 
+} from '@/app/services/roomService';
+import { 
+  getRoomTypes,  // Add this import
+  createRoomType, 
+  updateRoomType, 
+  deleteRoomType 
+} from '@/app/services/roomTypeService';
 import { RoomType, RoomTypeDetail } from '@/types/roomTypes';
 import { IconButton } from '@mui/material';
 import { Edit, Delete } from '@mui/icons-material';
@@ -34,6 +44,13 @@ const AdminRooms: React.FC = () => {
   const [filterType, setFilterType] = useState<string>('All');
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [roomTypeDialogOpen, setRoomTypeDialogOpen] = useState(false);
+  const [currentRoomType, setCurrentRoomType] = useState<RoomTypeDetail>({
+    TypeID: 0,
+    Name: '',
+    Description: '',
+    ImagePath: ''
+  });
 
   // Fetch Rooms Callback
   const fetchRooms = useCallback(async () => {
@@ -144,6 +161,72 @@ const AdminRooms: React.FC = () => {
       } finally {
         setLoading(false);
       }
+    }
+  };
+
+  // Room Type Dialog Handlers
+  const handleRoomTypeDialogOpen = () => {
+    setCurrentRoomType({
+      TypeID: 0,
+      Name: '',
+      Description: '',
+      ImagePath: ''
+    });
+    setRoomTypeDialogOpen(true);
+  };
+
+  const handleRoomTypeDialogClose = () => setRoomTypeDialogOpen(false);
+
+  const handleSaveRoomType = async () => {
+    if (!currentRoomType.Name) {
+      alert('Room type name is required');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const formData = new FormData();
+      formData.append('Name', currentRoomType.Name);
+      formData.append('Description', currentRoomType.Description || '');
+      
+      if (currentRoomType.TypeID) {
+        await updateRoomType(currentRoomType.TypeID, formData);
+      } else {
+        await createRoomType(formData);
+      }
+      
+      // Refresh room types
+      const types = await getRoomTypes();
+      setRoomTypes(types);
+      setRoomTypeDialogOpen(false);
+    } catch (err) {
+      console.error('Save room type error:', err);
+      alert('Failed to save room type');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEditRoomType = (type: RoomTypeDetail) => {
+    setCurrentRoomType(type);
+    setRoomTypeDialogOpen(true);
+  };
+
+  const handleDeleteRoomType = async (TypeID: number) => {
+    if (!window.confirm('Are you sure you want to delete this room type?')) {
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await deleteRoomType(TypeID);
+      const types = await getRoomTypes();
+      setRoomTypes(types);
+    } catch (err) {
+      console.error('Delete room type error:', err);
+      alert('Failed to delete room type');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -275,25 +358,8 @@ const AdminRooms: React.FC = () => {
             width: { xs: '100%', sm: 'auto' }
           }}
         >
-          <TextField
-            placeholder="Search rooms..."
-            variant="outlined"
-            size="small"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <Search />
-                </InputAdornment>
-              ),
-            }}
-            sx={{ 
-              flex: { xs: '1 0 100%', sm: '0 1 auto' }, 
-              mr: { sm: 2 },
-              minWidth: { sm: 200 }
-            }}
-          />
+          
+          
           <Select
             value={filterType}
             onChange={(e) => setFilterType(e.target.value)}
@@ -311,19 +377,31 @@ const AdminRooms: React.FC = () => {
               </MenuItem>
             ))}
           </Select>
-          <Button 
-            variant="contained" 
-            startIcon={<Add />} 
-            onClick={handleRoomDialogOpen}
-            sx={{ 
-              flex: { xs: '1 0 100%', sm: '0 1 auto' }, 
-              backgroundColor: '#1a472a', 
-              '&:hover': { backgroundColor: '#2e7d32' },
-              minWidth: { xs: '100%', sm: 'auto' }
-            }}
-          >
-            Add Room
-          </Button>
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            <Button 
+              variant="contained" 
+              startIcon={<Add />} 
+              onClick={handleRoomDialogOpen}
+              sx={{ 
+                backgroundColor: '#1a472a', 
+                '&:hover': { backgroundColor: '#2e7d32' }
+              }}
+            >
+              Add Room
+            </Button>
+            <Button 
+              variant="outlined" 
+              startIcon={<Settings />} 
+              onClick={handleRoomTypeDialogOpen}
+              sx={{ 
+                borderColor: '#1a472a', 
+                color: '#1a472a',
+                '&:hover': { borderColor: '#2e7d32', backgroundColor: '#f0f7f0' }
+              }}
+            >
+              Manage Types
+            </Button>
+          </Box>
         </Box>
       </Box>
 
@@ -418,6 +496,101 @@ const AdminRooms: React.FC = () => {
           <Button 
             onClick={handleSaveRoom}
             sx={{ backgroundColor: '#1a472a', color: 'white', '&:hover': { backgroundColor: '#2e7d32' } }}
+            disabled={loading}
+          >
+            Save
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Add/Edit Room Type Dialog - New Feature */}
+      <Dialog 
+        open={roomTypeDialogOpen} 
+        onClose={handleRoomTypeDialogClose}
+        fullWidth
+        maxWidth="sm"
+      >
+        <DialogTitle>
+          {currentRoomType.TypeID ? 'Edit Room Type' : 'Add New Room Type'}
+        </DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            margin="dense"
+            label="Type Name"
+            fullWidth
+            required
+            value={currentRoomType.Name}
+            onChange={(e) => setCurrentRoomType({ 
+              ...currentRoomType, 
+              Name: e.target.value 
+            })}
+            sx={{ my: 1 }}
+          />
+          <TextField
+            margin="dense"
+            label="Description"
+            fullWidth
+            multiline
+            rows={3}
+            value={currentRoomType.Description || ''}
+            onChange={(e) => setCurrentRoomType({ 
+              ...currentRoomType, 
+              Description: e.target.value 
+            })}
+            sx={{ my: 1 }}
+          />
+          <Typography variant="subtitle2" sx={{ mt: 2, mb: 1 }}>
+            Existing Room Types:
+          </Typography>
+          <Box sx={{ maxHeight: 200, overflowY: 'auto' }}>
+            {roomTypes.map((type) => (
+              <Box 
+                key={type.TypeID} 
+                sx={{ 
+                  display: 'flex', 
+                  justifyContent: 'space-between', 
+                  alignItems: 'center',
+                  p: 1,
+                  borderBottom: '1px solid #eee'
+                }}
+              >
+                <Typography>{type.Name}</Typography>
+                <Box>
+                  <IconButton 
+                    onClick={() => handleEditRoomType(type)}
+                    sx={{ color: '#1a472a' }}
+                    disabled={loading}
+                  >
+                    <Edit fontSize="small" />
+                  </IconButton>
+                  <IconButton 
+                    onClick={() => handleDeleteRoomType(type.TypeID)}
+                    sx={{ color: '#d32f2f' }}
+                    disabled={loading}
+                  >
+                    <Delete fontSize="small" />
+                  </IconButton>
+                </Box>
+              </Box>
+            ))}
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button 
+            onClick={handleRoomTypeDialogClose} 
+            color="error" 
+            disabled={loading}
+          >
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleSaveRoomType}
+            sx={{ 
+              backgroundColor: '#1a472a', 
+              color: 'white', 
+              '&:hover': { backgroundColor: '#2e7d32' } 
+            }}
             disabled={loading}
           >
             Save
