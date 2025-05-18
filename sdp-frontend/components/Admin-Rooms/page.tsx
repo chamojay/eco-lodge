@@ -11,18 +11,20 @@ import {
   type MRT_ColumnDef,
 } from 'material-react-table';
 import { getRooms, createRoom, updateRoom, deleteRoom } from '@/app/services/roomService';
-import { RoomType } from '@/types/roomTypes';
+import { getRoomTypes } from '@/app/services/roomTypeService';
+import { RoomType, RoomTypeDetail } from '@/types/roomTypes';
 import { IconButton } from '@mui/material';
 import { Edit, Delete } from '@mui/icons-material';
 
 const AdminRooms: React.FC = () => {
   // State Management
   const [rooms, setRooms] = useState<RoomType[]>([]);
+  const [roomTypes, setRoomTypes] = useState<RoomTypeDetail[]>([]);
   const [roomDialogOpen, setRoomDialogOpen] = useState(false);
   const [currentRoom, setCurrentRoom] = useState<RoomType>({ 
     RoomID: '', 
     RoomNumber: '', 
-    Type: 'Standard', 
+    TypeID: 0,  // Changed from Type to TypeID
     LocalPrice: 0,
     ForeignPrice: 0,
     MaxPeople: 1,
@@ -48,6 +50,19 @@ const AdminRooms: React.FC = () => {
     }
   }, [searchTerm, filterType]);
 
+  // Fetch room types
+  useEffect(() => {
+    const fetchRoomTypes = async () => {
+      try {
+        const types = await getRoomTypes();
+        setRoomTypes(types);
+      } catch (err) {
+        console.error('Failed to fetch room types:', err);
+      }
+    };
+    fetchRoomTypes();
+  }, []);
+
   // Fetch rooms on mount and when search/filter changes
   useEffect(() => {
     fetchRooms();
@@ -58,7 +73,7 @@ const AdminRooms: React.FC = () => {
     setCurrentRoom({ 
       RoomID: '', 
       RoomNumber: '', 
-      Type: 'Standard', 
+      TypeID: 0,  // Changed from Type to TypeID
       LocalPrice: 0,
       ForeignPrice: 0,
       MaxPeople: 1,
@@ -71,7 +86,7 @@ const AdminRooms: React.FC = () => {
 
   // Save Room (Add or Update)
   const handleSaveRoom = async () => {
-    if (!currentRoom.RoomNumber || !currentRoom.Type || 
+    if (!currentRoom.RoomNumber || !currentRoom.TypeID || 
         !currentRoom.LocalPrice || !currentRoom.ForeignPrice || !currentRoom.MaxPeople) {
       alert('All fields except description are required');
       return;
@@ -87,7 +102,7 @@ const AdminRooms: React.FC = () => {
     try {
       const roomData = {
         RoomNumber: currentRoom.RoomNumber,
-        Type: currentRoom.Type,
+        TypeID: currentRoom.TypeID, // Changed from Type to TypeID
         LocalPrice: currentRoom.LocalPrice,
         ForeignPrice: currentRoom.ForeignPrice,
         MaxPeople: currentRoom.MaxPeople,
@@ -142,7 +157,7 @@ const AdminRooms: React.FC = () => {
         minSize: 100,
       },
       {
-        accessorKey: 'Type',
+        accessorKey: 'TypeName', // Changed from Type
         header: 'Type',
         size: 120,
         minSize: 100,
@@ -290,10 +305,11 @@ const AdminRooms: React.FC = () => {
             }}
           >
             <MenuItem value="All">All Types</MenuItem>
-            <MenuItem value="Delux">Delux</MenuItem>
-            <MenuItem value="Suite">Suite</MenuItem>
-            <MenuItem value="Standard">Standard</MenuItem>
-            <MenuItem value="Cabana">Cabana</MenuItem>
+            {roomTypes.map((type) => (
+              <MenuItem key={type.TypeID} value={type.TypeID}>
+                {type.Name}
+              </MenuItem>
+            ))}
           </Select>
           <Button 
             variant="contained" 
@@ -344,14 +360,15 @@ const AdminRooms: React.FC = () => {
           <Select
             fullWidth
             required
-            value={currentRoom.Type}
-            onChange={(e) => setCurrentRoom({ ...currentRoom, Type: e.target.value as RoomType['Type'] })}
+            value={currentRoom.TypeID}
+            onChange={(e) => setCurrentRoom({ ...currentRoom, TypeID: Number(e.target.value) })}
             sx={{ my: 1 }}
           >
-            <MenuItem value="Delux">Delux</MenuItem>
-            <MenuItem value="Suite">Suite</MenuItem>
-            <MenuItem value="Standard">Standard</MenuItem>
-            <MenuItem value="Cabana">Cabana</MenuItem>
+            {roomTypes.map((type) => (
+              <MenuItem key={type.TypeID} value={type.TypeID}>
+                {type.Name}
+              </MenuItem>
+            ))}
           </Select>
           <TextField
             margin="dense"

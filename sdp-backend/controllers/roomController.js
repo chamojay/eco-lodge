@@ -1,138 +1,150 @@
-const db = require('../config/db');
-const mysql = require('mysql2/promise');
-
-// MySQL connection configuration
-const dbConfig = {
-  host: 'localhost',
-  user: 'root',
-  password: 'root', 
-  database: 'ecolodge' 
-};
+const pool = require('../config/db');
 
 // Create a new room
 const createRoom = async (req, res) => {
-  const connection = await mysql.createConnection(dbConfig);
   try {
-    const { RoomNumber, Type, LocalPrice, ForeignPrice, MaxPeople, Description } = req.body;
+    const { RoomNumber, TypeID, LocalPrice, ForeignPrice, MaxPeople, Description } = req.body;
 
-    if (!RoomNumber || !Type || !LocalPrice || !ForeignPrice || !MaxPeople) {
-      return res.status(400).json({ message: 'Room number, type, local price, foreign price, and max people are required' });
+    if (!RoomNumber || !TypeID || !LocalPrice || !ForeignPrice || !MaxPeople) {
+      return res.status(400).json({ message: 'Required fields are missing' });
     }
 
-    // Check if room number exists
-    const [existing] = await connection.execute(
-      'SELECT * FROM rooms WHERE RoomNumber = ?',
-      [RoomNumber]
-    );
-    if (existing.length > 0) {
-      return res.status(400).json({ message: 'Room number already exists' });
-    }
-
-    // Validate description length
-    const wordCount = Description ? Description.trim().split(/\s+/).length : 0;
-    if (wordCount > 100) {
-      return res.status(400).json({ message: 'Description cannot exceed 100 words' });
-    }
-
-    const [result] = await connection.execute(
-      'INSERT INTO rooms (RoomNumber, Type, LocalPrice, ForeignPrice, MaxPeople, Description) VALUES (?, ?, ?, ?, ?, ?)',
-      [RoomNumber, Type, LocalPrice, ForeignPrice, MaxPeople, Description || '']
+    // First check if room type exists
+    const [roomTypes] = await pool.query(
+      'SELECT TypeID FROM room_types WHERE TypeID = ?',
+      [TypeID]
     );
 
-    const newRoom = { RoomID: result.insertId, RoomNumber, Type, LocalPrice, ForeignPrice, MaxPeople, Description };
-    res.status(201).json(newRoom);
+    if (roomTypes.length === 0) {
+      return res.status(400).json({ message: 'Invalid room type' });
+    }
+
+    const [result] = await pool.query(
+      'INSERT INTO rooms (RoomNumber, TypeID, LocalPrice, ForeignPrice, MaxPeople, Description) VALUES (?, ?, ?, ?, ?, ?)',
+      [RoomNumber, TypeID, LocalPrice, ForeignPrice, MaxPeople, Description || '']
+    );
+
+    const [room] = await pool.query(
+      `SELECT r.*, rt.Name as TypeName, rt.ImagePath as TypeImagePath
+       FROM rooms r 
+       JOIN room_types rt ON r.TypeID = rt.TypeID 
+       WHERE r.RoomID = ?`,
+      [result.insertId]
+    );
+
+    res.status(201).json(room[0]);
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
-  } finally {
-    await connection.end();
   }
 };
 
 // Get all rooms
 const getAllRooms = async (req, res) => {
-  const connection = await mysql.createConnection(dbConfig);
   try {
     const { search, type } = req.query;
-    let query = 'SELECT * FROM rooms WHERE 1=1';
+    let query = `
+      SELECT r.*, rt.Name as TypeName, rt.ImagePath as TypeImagePath, rt.Description as TypeDescription
+      FROM rooms r 
+      JOIN room_types rt ON r.TypeID = rt.TypeID 
+      WHERE 1=1
+    `;
     const params = [];
 
     if (search) {
-      query += ' AND (RoomNumber LIKE ? OR Description LIKE ?)';
+      query += ' AND (r.RoomNumber LIKE ? OR r.Description LIKE ?)';
+
       params.push(`%${search}%`, `%${search}%`);
     }
     if (type && type !== 'All') {
-      query += ' AND Type = ?';
+      query += ' AND r.TypeID = ?';
       params.push(type);
     }
 
-    const [rooms] = await connection.execute(query, params);
+    const [rooms] = await pool.query(query, params);
     res.status(200).json(rooms);
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
-  } finally {
-    await connection.end();
   }
 };
 
 // Get a single room by ID
 const getRoomById = async (req, res) => {
-  const connection = await mysql.createConnection(dbConfig);
   try {
-    const [rooms] = await connection.execute(
-      'SELECT * FROM rooms WHERE RoomID = ?',
+    const [rooms] = await pool.query(
+      `SELECT r.*, rt.Name as TypeName, rt.ImagePath as TypeImagePath, rt.Description as TypeDescription
+       FROM rooms r 
+       JOIN room_types rt ON r.TypeID = rt.TypeID 
+       WHERE r.RoomID = ?`,
       [req.params.id]
     );
+
     if (rooms.length === 0) {
       return res.status(404).json({ message: 'Room not found' });
     }
     res.status(200).json(rooms[0]);
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
-  } finally {
-    await connection.end();
   }
 };
 
 // Update a room
 const updateRoom = async (req, res) => {
-  const connection = await mysql.createConnection(dbConfig);
   try {
-    const { RoomNumber, Type, LocalPrice, ForeignPrice, MaxPeople, Description } = req.body;
+    const { RoomNumber, TypeID, LocalPrice, ForeignPrice, MaxPeople, Description } = req.body;
 
-    if (!RoomNumber || !Type || !LocalPrice || !ForeignPrice || !MaxPeople) {
-      return res.status(400).json({ message: 'Room number, type, local price, foreign price, and max people are required' });
+    if (!RoomNumber || !TypeID || !LocalPrice || !ForeignPrice || !MaxPeople) {
+      return res.status(400).json({ message: 'Required fields are missing' });
     }
 
-    if (Description) {
-      const wordCount = Description.trim().split(/\s+/).length;
-      if (wordCount > 100) {
-        return res.status(400).json({ message: 'Description cannot exceed 100 words' });
-      }
+    // Check if room type exists
+    const [roomTypes] = await pool.query(
+      'SELECT TypeID FROM room_types WHERE TypeID = ?',
+      [TypeID]
+    );
+
+    if (roomTypes.length === 0) {
+      return res.status(400).json({ message: 'Invalid room type' });
     }
 
-    const [result] = await connection.execute(
-      'UPDATE rooms SET RoomNumber = ?, Type = ?, LocalPrice = ?, ForeignPrice = ?, MaxPeople = ?, Description = ? WHERE RoomID = ?',
-      [RoomNumber, Type, LocalPrice, ForeignPrice, MaxPeople, Description || '', req.params.id]
+    const [result] = await pool.query(
+      'UPDATE rooms SET RoomNumber = ?, TypeID = ?, LocalPrice = ?, ForeignPrice = ?, MaxPeople = ?, Description = ? WHERE RoomID = ?',
+      [RoomNumber, TypeID, LocalPrice, ForeignPrice, MaxPeople, Description || '', req.params.id]
     );
 
     if (result.affectedRows === 0) {
       return res.status(404).json({ message: 'Room not found' });
     }
 
-    const updatedRoom = { RoomID: req.params.id, RoomNumber, Type, LocalPrice, ForeignPrice, MaxPeople, Description };
-    res.status(200).json(updatedRoom);
+    const [updatedRoom] = await pool.query(
+      `SELECT r.*, rt.Name as TypeName, rt.ImagePath as TypeImagePath, rt.Description as TypeDescription
+       FROM rooms r 
+       JOIN room_types rt ON r.TypeID = rt.TypeID 
+       WHERE r.RoomID = ?`,
+      [req.params.id]
+    );
+
+    res.status(200).json(updatedRoom[0]);
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
-  } finally {
-    await connection.end();
   }
 };
 
 // Delete a room
 const deleteRoom = async (req, res) => {
-  const connection = await mysql.createConnection(dbConfig);
   try {
-    const [result] = await connection.execute(
+    // Check if room has any reservations
+    const [reservations] = await pool.query(
+      'SELECT COUNT(*) as count FROM reservations WHERE RoomID = ?',
+      [req.params.id]
+    );
+
+    if (reservations[0].count > 0) {
+      return res.status(400).json({ 
+        message: 'Cannot delete room as it has existing reservations' 
+      });
+    }
+
+    const [result] = await pool.query(
       'DELETE FROM rooms WHERE RoomID = ?',
       [req.params.id]
     );
@@ -143,8 +155,6 @@ const deleteRoom = async (req, res) => {
     res.status(200).json({ message: 'Room deleted successfully' });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
-  } finally {
-    await connection.end();
   }
 };
 
