@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { 
   Box, Typography, Button, TextField, Select, MenuItem, 
   Dialog, DialogTitle, DialogContent, DialogActions, InputAdornment 
@@ -26,6 +26,8 @@ import { RoomType, RoomTypeDetail } from '@/types/roomTypes';
 import { IconButton } from '@mui/material';
 import { Edit, Delete } from '@mui/icons-material';
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+
 const AdminRooms: React.FC = () => {
   // State Management
   const [rooms, setRooms] = useState<RoomType[]>([]);
@@ -51,6 +53,7 @@ const AdminRooms: React.FC = () => {
     Description: '',
     ImagePath: ''
   });
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Fetch Rooms Callback
   const fetchRooms = useCallback(async () => {
@@ -188,6 +191,11 @@ const AdminRooms: React.FC = () => {
       const formData = new FormData();
       formData.append('Name', currentRoomType.Name);
       formData.append('Description', currentRoomType.Description || '');
+      
+      // Add file to formData if it exists
+      if (fileInputRef.current?.files?.[0]) {
+        formData.append('image', fileInputRef.current.files[0]);
+      }
       
       if (currentRoomType.TypeID) {
         await updateRoomType(currentRoomType.TypeID, formData);
@@ -540,10 +548,60 @@ const AdminRooms: React.FC = () => {
             })}
             sx={{ my: 1 }}
           />
+          <Box sx={{ my: 2 }}>
+            <input
+              type="file"
+              accept="image/*"
+              style={{ display: 'none' }}
+              ref={fileInputRef}
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) {
+                  // Preview image if needed
+                  setCurrentRoomType({
+                    ...currentRoomType,
+                    ImagePath: URL.createObjectURL(file)
+                  });
+                }
+              }}
+            />
+            <Button
+              variant="outlined"
+              component="span"
+              onClick={() => fileInputRef.current?.click()}
+              fullWidth
+              sx={{
+                borderColor: '#1a472a',
+                color: '#1a472a',
+                '&:hover': { borderColor: '#2e7d32', backgroundColor: '#f0f7f0' }
+              }}
+            >
+              Upload Image
+            </Button>
+            {(currentRoomType.ImagePath || fileInputRef.current?.files?.[0]) && (
+              <Box sx={{ mt: 2, textAlign: 'center' }}>
+                <img
+                  src={
+                    fileInputRef.current?.files?.[0]
+                      ? URL.createObjectURL(fileInputRef.current.files[0])
+                      : currentRoomType.ImagePath 
+                        ? `${API_BASE_URL}${currentRoomType.ImagePath}`
+                        : ''
+                  }
+                  alt="Room Type Preview"
+                  style={{
+                    maxWidth: '100%',
+                    maxHeight: '200px',
+                    objectFit: 'contain'
+                  }}
+                />
+              </Box>
+            )}
+          </Box>
           <Typography variant="subtitle2" sx={{ mt: 2, mb: 1 }}>
             Existing Room Types:
           </Typography>
-          <Box sx={{ maxHeight: 200, overflowY: 'auto' }}>
+          <Box sx={{ maxHeight: 300, overflowY: 'auto' }}>
             {roomTypes.map((type) => (
               <Box 
                 key={type.TypeID} 
@@ -551,11 +609,32 @@ const AdminRooms: React.FC = () => {
                   display: 'flex', 
                   justifyContent: 'space-between', 
                   alignItems: 'center',
-                  p: 1,
+                  p: 2,
                   borderBottom: '1px solid #eee'
                 }}
               >
-                <Typography>{type.Name}</Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                  {type.ImagePath && (
+                    <img
+                      src={`${API_BASE_URL}${type.ImagePath}`}
+                      alt={type.Name}
+                      style={{
+                        width: 'auto',
+                        height: 'auto',
+                        objectFit: 'cover',
+                        borderRadius: '4px'
+                      }}
+                    />
+                  )}
+                  <Box>
+                    <Typography variant="subtitle1">{type.Name}</Typography>
+                    {type.Description && (
+                      <Typography variant="body2" color="text.secondary">
+                        {type.Description}
+                      </Typography>
+                    )}
+                  </Box>
+                </Box>
                 <Box>
                   <IconButton 
                     onClick={() => handleEditRoomType(type)}
