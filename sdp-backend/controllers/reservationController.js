@@ -1,14 +1,15 @@
 const pool = require('../config/db');
 
 const ReservationController = {
-  // Check room availability
+  // Update checkAvailability to include room type information
   checkAvailability: async (req, res) => {
     try {
       const { checkIn, checkOut } = req.body;
       
       const [rooms] = await pool.query(
-        `SELECT r.RoomNumber, r.Type, r.LocalPrice, r.ForeignPrice, r.MaxPeople 
+        `SELECT r.RoomNumber, rt.Name as TypeName, r.LocalPrice, r.ForeignPrice, r.MaxPeople 
          FROM rooms r
+         JOIN room_types rt ON r.TypeID = rt.TypeID
          WHERE r.RoomID NOT IN (
            SELECT RoomID 
            FROM reservations 
@@ -27,7 +28,7 @@ const ReservationController = {
     }
   },
 
-  // Create a new reservation
+  // Update createReservation to use PackageID instead of PackageType
   createReservation: async (req, res) => {
     const connection = await pool.getConnection();
     try {
@@ -60,17 +61,20 @@ const ReservationController = {
         throw new Error('Room not found');
       }
 
-      // Insert reservation
+      // Insert reservation with PackageID
       const [reservationResult] = await connection.query(
-        `INSERT INTO reservations (CustomerID, RoomID, CheckInDate, CheckOutDate, TotalAmount, PackageType, Adults, Children, SpecialRequests, ArrivalTime, DepartureTime, Room_Status)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO reservations (
+          CustomerID, RoomID, CheckInDate, CheckOutDate, TotalAmount, 
+          PackageID, Adults, Children, SpecialRequests, 
+          ArrivalTime, DepartureTime, Room_Status
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           customerResult.insertId,
           room[0].RoomID,
           reservationData.CheckInDate,
           reservationData.CheckOutDate,
           reservationData.TotalAmount,
-          reservationData.PackageType,
+          reservationData.PackageID,  // Changed from PackageType
           reservationData.Adults,
           reservationData.Children,
           reservationData.SpecialRequests,
@@ -174,18 +178,24 @@ const ReservationController = {
     }
   },
 
-  // Get all rooms status
+  // Update getAllRoomsStatus to include more room type details
   getAllRoomsStatus: async (req, res) => {
     try {
       const [rooms] = await pool.query(
         `SELECT 
+            r.RoomID,
             r.RoomNumber, 
-            r.Type, 
+            r.TypeID,
+            rt.Name as TypeName,
+            rt.ImagePath as TypeImagePath,
+            rt.Description as TypeDescription,
             r.LocalPrice, 
             r.ForeignPrice, 
             r.MaxPeople,
+            r.Description,
             COALESCE(res.Room_Status, 'Completed') AS Room_Status
          FROM rooms r
+         LEFT JOIN room_types rt ON r.TypeID = rt.TypeID
          LEFT JOIN reservations res 
          ON r.RoomID = res.RoomID 
          AND res.Room_Status = 'Confirmed' 
@@ -195,6 +205,7 @@ const ReservationController = {
 
       res.json(rooms);
     } catch (error) {
+      console.error('Error fetching rooms status:', error);
       res.status(500).json({ error: error.message });
     }
   },
