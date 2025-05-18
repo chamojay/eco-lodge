@@ -70,6 +70,7 @@ const CheckOutComponent = () => {
   const [newCharge, setNewCharge] = useState<ExtraCharge>({ ChargeID: 0, Description: '', Amount: 0, ReservationID: 0, TypeID: null });
   const [openConfirmDialog, setOpenConfirmDialog] = useState(false);
   const [openSuccessSnackbar, setOpenSuccessSnackbar] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<'Cash' | 'Card' | 'Online'>('Cash');
 
   useEffect(() => {
     const fetchInitialData = async () => {
@@ -138,7 +139,7 @@ const CheckOutComponent = () => {
     if (!selectedReservation) return;
     setProcessing(selectedReservation.ReservationID);
     try {
-      await reservationService.completeCheckout(selectedReservation.ReservationID);
+      await reservationService.completeCheckout(selectedReservation.ReservationID, paymentMethod);
       setReservations(reservations.filter(r => r.ReservationID !== selectedReservation.ReservationID));
       setView('list');
       setSelectedReservation(null);
@@ -355,6 +356,18 @@ const CheckOutComponent = () => {
               <li><strong>Total Amount Due: LKR {totalInvoice}</strong></li>
             </Box>
           </DialogContentText>
+          <FormControl fullWidth sx={{ mt: 2 }}>
+            <InputLabel>Payment Method</InputLabel>
+            <Select
+              value={paymentMethod}
+              onChange={(e) => setPaymentMethod(e.target.value as 'Cash' | 'Card' | 'Online')}
+              label="Payment Method"
+            >
+              <MenuItem value="Cash">Cash</MenuItem>
+              <MenuItem value="Card">Card</MenuItem>
+              <MenuItem value="Online">Online</MenuItem>
+            </Select>
+          </FormControl>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setOpenConfirmDialog(false)}>Cancel</Button>

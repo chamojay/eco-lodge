@@ -116,28 +116,61 @@ const ReservationController = {
   // Complete checkout process
   completeCheckout: async (req, res) => {
     const { id } = req.params;
+    const { paymentMethod = 'Cash' } = req.body; // Get payment method from request body
 
     const connection = await pool.getConnection();
     try {
-      await connection.beginTransaction();
+        await connection.beginTransaction();
 
-      // Update reservation status to 'Completed'
-      await connection.query(
-        'UPDATE reservations SET Room_Status = "Completed" WHERE ReservationID = ?',
-        [id]
-      );
+        // Calculate total amount including extra charges and activities
+        const [reservation] = await connection.query(
+            `SELECT 
+                r.TotalAmount,
+                COALESCE(SUM(ec.Amount), 0) as ExtraChargesTotal,
+                COALESCE(
+                    (SELECT SUM(a.LocalPrice * ra.Participants)
+                     FROM reservation_activities ra
+                     JOIN activities a ON ra.ActivityID = a.ActivityID
+                     WHERE ra.ReservationID = r.ReservationID), 0
+                ) as ActivitiesTotal
+            FROM reservations r
+            LEFT JOIN extra_charges ec ON r.ReservationID = ec.ReservationID
+            WHERE r.ReservationID = ?
+            GROUP BY r.ReservationID`,
+            [id]
+        );
 
-      await connection.commit();
-      res.json({ success: true });
+        const finalTotal = parseFloat(reservation[0].TotalAmount) + 
+                         parseFloat(reservation[0].ExtraChargesTotal) + 
+                         parseFloat(reservation[0].ActivitiesTotal);
+
+        // Insert payment record
+        await connection.query(
+            'INSERT INTO payments (Amount, PaymentMethod, ReservationID) VALUES (?, ?, ?)',
+            [finalTotal, paymentMethod, id]
+        );
+
+        // Update reservation status
+        await connection.query(
+            'UPDATE reservations SET Room_Status = "Completed" WHERE ReservationID = ?',
+            [id]
+        );
+
+        await connection.commit();
+        res.json({ 
+            success: true,
+            totalAmount: finalTotal,
+            message: 'Checkout completed and payment recorded'
+        });
     } catch (error) {
-      await connection.rollback();
-      console.error('Error completing checkout:', error);
-      res.status(500).json({ 
-        success: false, 
-        error: error.message 
-      });
+        await connection.rollback();
+        console.error('Error completing checkout:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: error.message 
+        });
     } finally {
-      connection.release();
+        connection.release();
     }
   },
 
