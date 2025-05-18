@@ -12,13 +12,16 @@ const orderRoutes = require('./routes/Restaurant/orderRoutes');
 const paymentRoutes = require('./routes/Restaurant/paymentRoutes');
 const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
+const roomTypeRoutes = require('./routes/roomTypeRoutes');
+const packageTypeRoutes = require('./routes/packageTypeRoutes');
+const path = require('path');
 const app = express();
 const port = 5000;
 
 // Middleware
 app.use(express.json());
 app.use(cors({ origin: ['http://localhost:3000', 'http://localhost:3001'] })); // Allow requests from React app
-
+app.use('/uploads', express.static(path.join(__dirname, 'public/uploads'))); // Serve static files from the public directory
 
 // API Routes
 app.use('/api/users', userRoutes);
@@ -32,6 +35,8 @@ app.use('/api/menu', menuRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/auth', authRoutes);
+app.use('/api/room-types', roomTypeRoutes);
+app.use('/api/package-types', packageTypeRoutes);
 
 // Global error handler
 app.use((err, req, res, next) => {
