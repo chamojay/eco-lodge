@@ -9,20 +9,30 @@ export interface Room {
 }
 
 export interface Reservation {
-  ReservationID: string;
-  CustomerID: number;
+  ReservationID: number;
   CheckInDate: string;
   CheckOutDate: string;
-  Room_Status: 'Pending' | 'Confirmed' | 'Cancelled' | 'Completed';
-  PackageType: 'RoomOnly' | 'HalfBoard' | 'FullBoard';
+  Room_Status: string;
+  PackageID: number;
+  PackageName: string;
+  PriceMultiplier: number;
   Adults: number;
   Children: number;
-  SpecialRequests?: string;
-  ArrivalTime?: string;
-  DepartureTime?: string;
-  RoomID: number;
-  TotalAmount?: number;
-  ExtraCharges?: number; // New field to store extra charges
+  SpecialRequests: string;
+  ArrivalTime: string;
+  DepartureTime: string;
+  RoomNumber: string;
+  RoomType: string;
+  Status: string;
+  CustomerID: number;
+  Title: string;
+  FirstName: string;
+  LastName: string;
+  Email: string;
+  Phone: string;
+  Country: string;
+  NIC: string;
+  PassportNumber: string;
 }
 
 export interface Customer {

@@ -10,32 +10,46 @@ const reservationTableController = {
           DATE_FORMAT(r.CheckInDate, '%Y-%m-%d') AS CheckInDate,
           DATE_FORMAT(r.CheckOutDate, '%Y-%m-%d') AS CheckOutDate,
           r.Room_Status,
-          r.PackageType,
+          COALESCE(pt.Name, 'Not Set') as PackageName,
+          COALESCE(pt.PriceMultiplier, 1) as PriceMultiplier,
           r.Adults,
           r.Children,
           r.SpecialRequests,
           r.ArrivalTime,
           r.DepartureTime,
-          rm.RoomNumber,
-          c.CustomerID,
-          c.Title,
-          c.FirstName,
-          c.LastName,
-          c.Email,
-          c.Phone,
-          c.Country,
-          c.NIC,
-          c.PassportNumber,
+          COALESCE(rm.RoomNumber, 'Not Assigned') as RoomNumber,
+          COALESCE(rt.Name, 'Not Set') as RoomType,
+          COALESCE(c.CustomerID, 0) as CustomerID,
+          COALESCE(c.Title, '') as Title,
+          COALESCE(c.FirstName, '') as FirstName,
+          COALESCE(c.LastName, '') as LastName,
+          COALESCE(c.Email, '') as Email,
+          COALESCE(c.Phone, '') as Phone,
+          COALESCE(c.Country, '') as Country,
+          COALESCE(c.NIC, '') as NIC,
+          COALESCE(c.PassportNumber, '') as PassportNumber,
           CASE 
-            WHEN CURDATE() BETWEEN r.CheckInDate AND r.CheckOutDate THEN 'Active'
-            WHEN CURDATE() < r.CheckInDate THEN 'Future'
-            ELSE 'Past'
+            WHEN r.CheckInDate <= CURDATE() AND r.CheckOutDate >= CURDATE() THEN 'Active'
+            WHEN r.CheckInDate > CURDATE() THEN 'Future'
+            WHEN r.CheckOutDate < CURDATE() THEN 'Past'
+            ELSE 'Unknown'
           END AS Status
         FROM reservations r
-        JOIN customers c ON r.CustomerID = c.CustomerID
-        JOIN rooms rm ON r.RoomID = rm.RoomID
-        ORDER BY r.CheckInDate DESC
-      `);
+        LEFT JOIN customers c ON r.CustomerID = c.CustomerID
+        LEFT JOIN rooms rm ON r.RoomID = rm.RoomID
+        LEFT JOIN room_types rt ON rm.TypeID = rt.TypeID
+        LEFT JOIN package_types pt ON r.PackageID = pt.PackageID
+        ORDER BY 
+          CASE 
+            WHEN r.CheckInDate <= CURDATE() AND r.CheckOutDate >= CURDATE() THEN 1
+            WHEN r.CheckInDate > CURDATE() THEN 2
+            WHEN r.CheckOutDate < CURDATE() THEN 3
+            ELSE 4
+          END,
+          r.CheckInDate DESC`
+      );
+      
+      console.log(`Found ${rows.length} reservations`); // Debug log
       res.json(rows);
     } catch (err) {
       console.error('Error fetching reservations:', err);
@@ -50,7 +64,7 @@ const reservationTableController = {
       CheckInDate,
       CheckOutDate,
       Room_Status,
-      PackageType,
+      PackageID, // Changed from PackageType
       Adults,
       Children,
       SpecialRequests,
@@ -83,14 +97,14 @@ const reservationTableController = {
       const [reservationResult] = await connection.query(
         `UPDATE reservations 
          SET CheckInDate = ?, CheckOutDate = ?, Room_Status = ?, 
-             PackageType = ?, Adults = ?, Children = ?, SpecialRequests = ?, 
+             PackageID = ?, Adults = ?, Children = ?, SpecialRequests = ?, 
              ArrivalTime = ?, DepartureTime = ?, RoomID = ?
          WHERE ReservationID = ?`,
         [
           CheckInDate,
           CheckOutDate,
           Room_Status,
-          PackageType,
+          PackageID,
           Adults,
           Children,
           SpecialRequests,
@@ -154,13 +168,16 @@ const reservationTableController = {
           DATE_FORMAT(r.CheckInDate, '%Y-%m-%d') AS CheckInDate,
           DATE_FORMAT(r.CheckOutDate, '%Y-%m-%d') AS CheckOutDate,
           r.Room_Status,
-          r.PackageType,
+          pt.PackageID,
+          pt.Name as PackageName,
+          pt.PriceMultiplier,
           r.Adults,
           r.Children,
           r.SpecialRequests,
           r.ArrivalTime,
           r.DepartureTime,
           rm.RoomNumber,
+          rt.Name as RoomType,
           c.CustomerID,
           c.Title,
           c.FirstName,
@@ -173,6 +190,8 @@ const reservationTableController = {
          FROM reservations r
          JOIN customers c ON r.CustomerID = c.CustomerID
          JOIN rooms rm ON r.RoomID = rm.RoomID
+         JOIN room_types rt ON rm.TypeID = rt.TypeID
+         JOIN package_types pt ON r.PackageID = pt.PackageID
          WHERE r.ReservationID = ?`,
         [id]
       );

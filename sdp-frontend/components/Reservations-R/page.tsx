@@ -27,13 +27,16 @@ type Reservation = {
   CheckInDate: string;
   CheckOutDate: string;
   Room_Status: string;
-  PackageType: string;
+  PackageID: number;
+  PackageName: string;
+  PriceMultiplier: number;
   Adults: number;
   Children: number;
   SpecialRequests: string;
   ArrivalTime: string;
   DepartureTime: string;
   RoomNumber: string;
+  RoomType: string;
   Status: string;
   CustomerID: number;
   Title: string;
@@ -65,23 +68,70 @@ const ReservationComponent = () => {
   }, [loadReservations]);
 
   const handleEditClick = async (id: number) => {
-    const data = await fetchReservationById(id);
-    setSelected(data);
-    if (data.CheckInDate && data.CheckOutDate) {
-      try {
-        const rooms = await reservationService.checkAvailability(data.CheckInDate, data.CheckOutDate);
-        setAvailableRooms(rooms.map((room: any) => room.RoomNumber));
-      } catch (error) {
-        console.error('Error fetching available rooms:', error);
+    try {
+      console.log('Editing reservation:', id);
+      const data = await fetchReservationById(id);
+      console.log('Fetched reservation data:', data);
+      
+      if (!data) {
+        console.error('No data received for reservation:', id);
+        return;
       }
+
+      setSelected(data);
+      
+      // Format dates properly
+      const formattedData = {
+        ...data,
+        CheckInDate: data.CheckInDate?.split('T')[0] || '',
+        CheckOutDate: data.CheckOutDate?.split('T')[0] || '',
+      };
+      setSelected(formattedData);
+
+      if (formattedData.CheckInDate && formattedData.CheckOutDate) {
+        try {
+          const rooms = await reservationService.checkAvailability(
+            formattedData.CheckInDate,
+            formattedData.CheckOutDate
+          );
+          // Include current room in available rooms
+          const availableRoomNumbers = rooms.map((room: any) => room.RoomNumber);
+          if (!availableRoomNumbers.includes(formattedData.RoomNumber)) {
+            availableRoomNumbers.push(formattedData.RoomNumber);
+          }
+          setAvailableRooms(availableRoomNumbers);
+        } catch (error) {
+          console.error('Error fetching available rooms:', error);
+        }
+      }
+      setOpen(true);
+    } catch (error) {
+      console.error('Error in handleEditClick:', error);
     }
-    setOpen(true);
   };
 
   const handleViewClick = async (id: number) => {
-    const data = await fetchReservationById(id);
-    setSelected(data);
-    setViewOpen(true);
+    try {
+      console.log('Viewing reservation:', id);
+      const data = await fetchReservationById(id);
+      console.log('Fetched reservation data:', data);
+      
+      if (!data) {
+        console.error('No data received for reservation:', id);
+        return;
+      }
+
+      // Format dates properly
+      const formattedData = {
+        ...data,
+        CheckInDate: data.CheckInDate?.split('T')[0] || '',
+        CheckOutDate: data.CheckOutDate?.split('T')[0] || '',
+      };
+      setSelected(formattedData);
+      setViewOpen(true);
+    } catch (error) {
+      console.error('Error in handleViewClick:', error);
+    }
   };
 
   const handleChange = async (e: React.ChangeEvent<HTMLInputElement | { name?: string; value: unknown }>) => {
@@ -112,11 +162,26 @@ const ReservationComponent = () => {
 
   // Filter reservations based on status
   const filteredReservations = useMemo(() => {
+    if (!Array.isArray(reservations)) {
+      return [];
+    }
+    
     if (filterStatus === 'All') {
       return reservations;
     }
-    return reservations.filter((r) => r.Status === filterStatus);
+    
+    return reservations.filter((r) => {
+      const status = r.Status;
+      return status === filterStatus;
+    });
   }, [reservations, filterStatus]);
+
+  // Add debug logging
+  useEffect(() => {
+    console.log('Current reservations:', reservations);
+    console.log('Filter status:', filterStatus);
+    console.log('Filtered reservations:', filteredReservations);
+  }, [reservations, filterStatus, filteredReservations]);
 
   // Define columns for MaterialReactTable
   const columns = useMemo<MRT_ColumnDef<Reservation>[]>(
@@ -154,6 +219,21 @@ const ReservationComponent = () => {
         Cell: ({ cell }) => cell.getValue<string>().split('T')[0],
       },
       {
+        accessorKey: 'Status',
+        header: 'Status',
+        size: 100,
+        Cell: ({ cell }) => (
+          <Typography
+            sx={{
+              color: cell.getValue() === 'Active' ? 'success.main' : 
+                     cell.getValue() === 'Future' ? 'info.main' : 'text.secondary'
+            }}
+          >
+            {cell.getValue<string>()}
+          </Typography>
+        ),
+      },
+      {
         accessorKey: 'ReservationID',
         header: 'Actions',
         size: 140,
@@ -161,23 +241,32 @@ const ReservationComponent = () => {
         enableSorting: false,
         enableColumnActions: false,
         Cell: ({ row }) => (
-          <>
+          <Box sx={{ display: 'flex', gap: 1 }}>
             <Button
               variant="outlined"
               size="small"
-              onClick={() => handleEditClick(row.original.ReservationID)}
-              sx={{ mr: 1 }}
+              onClick={() => {
+                if (row.original.ReservationID) {
+                  handleEditClick(row.original.ReservationID);
+                }
+              }}
+              sx={{ minWidth: 60 }}
             >
               Edit
             </Button>
             <Button
               variant="text"
               size="small"
-              onClick={() => handleViewClick(row.original.ReservationID)}
+              onClick={() => {
+                if (row.original.ReservationID) {
+                  handleViewClick(row.original.ReservationID);
+                }
+              }}
+              sx={{ minWidth: 60 }}
             >
               View
             </Button>
-          </>
+          </Box>
         ),
       },
     ],
@@ -248,10 +337,19 @@ const ReservationComponent = () => {
             sx={{
               flex: { xs: '1 0 100%', sm: '0 1 auto' },
               minWidth: { xs: '100%', sm: 120 },
+              backgroundColor: 'white'
             }}
           >
             {statusOptions.map((status) => (
-              <MenuItem key={status} value={status}>
+              <MenuItem 
+                key={status} 
+                value={status}
+                sx={{
+                  color: status === 'Active' ? 'success.main' : 
+                        status === 'Future' ? 'info.main' : 
+                        status === 'All' ? 'text.primary' : 'text.secondary'
+                }}
+              >
                 {status}
               </MenuItem>
             ))}
@@ -293,8 +391,8 @@ const ReservationComponent = () => {
             <FormControl fullWidth>
               <InputLabel>Package Type</InputLabel>
               <Select
-                name="PackageType"
-                value={selected?.PackageType || ''}
+                name="PackageID"
+                value={selected?.PackageID || ''}
                 onChange={handleChange}
               >
                 {packageTypes.map((pkg) => (
@@ -493,7 +591,8 @@ const ReservationComponent = () => {
               <strong>Room Status:</strong> {selected?.Room_Status}
             </Typography>
             <Typography>
-              <strong>Package Type:</strong> {selected?.PackageType}
+              <strong>Package:</strong> {selected?.PackageName} 
+              {selected?.PriceMultiplier && ` (${(selected.PriceMultiplier * 100 - 100).toFixed(0)}% extra)`}
             </Typography>
             <Typography>
               <strong>Check-In:</strong> {selected?.CheckInDate?.split('T')[0]}
