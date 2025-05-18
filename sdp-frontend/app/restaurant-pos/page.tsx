@@ -49,6 +49,7 @@ interface PaymentDetails {
   cardHolder?: string;
   mobileNumber?: string;
   referenceNumber?: string;
+  source?: 'Web' | 'Reception' | 'Restaurant';
 }
 
 const POSPage = () => {
@@ -150,11 +151,12 @@ const POSPage = () => {
         })),
       });
 
-      // Process payment
+      // Process payment with Source
       await axios.post("http://localhost:5000/api/payments", {
         OrderID: orderRes.data.OrderID,
         Amount: Number(total.toFixed(2)),
         PaymentMethod: details.method,
+        Source: 'Restaurant', // Add this line
         PaymentDetails: {
           ...details,
           timestamp: new Date().toISOString()

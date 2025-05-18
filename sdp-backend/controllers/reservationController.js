@@ -116,7 +116,7 @@ const ReservationController = {
   // Complete checkout process
   completeCheckout: async (req, res) => {
     const { id } = req.params;
-    const { paymentMethod = 'Cash' } = req.body; // Get payment method from request body
+    const { paymentMethod = 'Cash' } = req.body;
 
     const connection = await pool.getConnection();
     try {
@@ -144,10 +144,10 @@ const ReservationController = {
                          parseFloat(reservation[0].ExtraChargesTotal) + 
                          parseFloat(reservation[0].ActivitiesTotal);
 
-        // Insert payment record
+        // Insert payment record with Source as 'Reception'
         await connection.query(
-            'INSERT INTO payments (Amount, PaymentMethod, ReservationID) VALUES (?, ?, ?)',
-            [finalTotal, paymentMethod, id]
+            'INSERT INTO payments (Amount, PaymentMethod, ReservationID, Source) VALUES (?, ?, ?, ?)',
+            [finalTotal, paymentMethod, id, 'Reception']
         );
 
         // Update reservation status
