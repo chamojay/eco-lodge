@@ -1,4 +1,5 @@
 const pool = require('../config/db');
+const emailService = require('../services/emailService');
 
 const ReservationController = {
   // Update checkAvailability to include room type information
@@ -83,6 +84,31 @@ const ReservationController = {
           'Confirmed'
         ]
       );
+
+      // Fetch package type information for the email
+      const [packageTypeResult] = await connection.query(
+        `SELECT Name FROM package_types WHERE PackageID = ?`,
+        [reservationData.PackageID]
+      );
+
+      // After successful reservation creation, send confirmation email
+      try {
+        await emailService.sendReservationConfirmation({
+          ...reservationResult,
+          Email: customerData.Email,
+          Title: customerData.Title,
+          FirstName: customerData.FirstName,
+          LastName: customerData.LastName,
+          RoomNumber: roomNumber,
+          PackageName: packageTypeResult[0]?.Name || 'Room Only',
+          CheckInDate: reservationData.CheckInDate,
+          CheckOutDate: reservationData.CheckOutDate,
+          ReservationID: reservationResult.insertId
+        });
+      } catch (emailError) {
+        console.error('Error sending confirmation email:', emailError);
+        // Don't fail the reservation if email fails
+      }
 
       await connection.commit();
       

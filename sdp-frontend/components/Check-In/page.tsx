@@ -29,6 +29,7 @@ import {
 import axios from 'axios';
 import { reservationService } from '@/app/services/reservationService';
 import { packageTypeService } from '@/app/services/packageTypeService';
+import { emailService } from '@/app/services/emailService';
 import { Room, PackageType } from '@/types/reservationtypes';
 
 const steps = ['Select Dates', 'Choose Room', 'Guest Details', 'Reservation Details', 'Review Invoice'];
@@ -352,14 +353,15 @@ const CheckInComponent = () => {
       const invoice = calculateTotalAmount();
       if (!invoice) throw new Error('Unable to calculate total amount');
 
-      await reservationService.createReservation(
+      // Create the reservation
+      const reservationResult = await reservationService.createReservation(
         selectedRoom.RoomNumber,
         customerData,
         {
           CheckInDate: checkIn,
           CheckOutDate: checkOut,
           TotalAmount: invoice.totalPriceLKR,
-          PackageType: reservationData.PackageType,
+          PackageID: reservationData.PackageID, // Changed from PackageType
           Adults: reservationData.Adults,
           Children: reservationData.Children,
           SpecialRequests: reservationData.SpecialRequests,
@@ -367,11 +369,23 @@ const CheckInComponent = () => {
           DepartureTime: reservationData.DepartureTime
         }
       );
+
+      // Send confirmation email
+      try {
+        await emailService.sendReservationConfirmation(reservationResult.id);
+        console.log('Confirmation email sent successfully');
+      } catch (emailError) {
+        console.error('Error sending confirmation email:', emailError);
+        // Don't fail the reservation if email fails
+      }
+
       setActiveStep(5);
     } catch (error) {
       console.error('Error creating reservation:', error);
+      // Add error handling UI here if needed
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const invoice = activeStep === 4 ? calculateTotalAmount() : null;
@@ -774,6 +788,12 @@ const CheckInComponent = () => {
             Reservation Successful!
           </Typography>
           <Typography>Room {selectedRoom?.RoomNumber} has been booked.</Typography>
+          <Typography sx={{ mt: 2, color: 'text.secondary' }}>
+            A confirmation email has been sent to {customerData.Email}
+          </Typography>
+          <Typography variant="body2" sx={{ mt: 1, color: 'text.secondary' }}>
+            Please check your inbox (and spam folder) for the reservation details.
+          </Typography>
         </Box>
       )}
     </Box>
