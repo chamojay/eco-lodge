@@ -43,39 +43,44 @@ model extra_charges {
 }
 
 model reservations {
-  ReservationID          Int                       @id @default(autoincrement())
+  ReservationID          Int                      @id @default(autoincrement())
   CustomerID             Int
-  CheckInDate            DateTime                  @db.Date
-  CheckOutDate           DateTime                  @db.Date
-  TotalAmount            Decimal                   @db.Decimal(10, 2)
-  Room_Status            reservations_Room_Status  @default(Pending)
-  PackageType            reservations_PackageType? @default(RoomOnly)
+  CheckInDate            DateTime                 @db.Date
+  CheckOutDate           DateTime                 @db.Date
+  TotalAmount            Decimal                  @db.Decimal(10, 2)
+  Room_Status            reservations_Room_Status @default(Pending)
   Adults                 Int?
   Children               Int?
-  SpecialRequests        String?                   @db.Text
-  ArrivalTime            DateTime?                 @db.Time(0)
-  DepartureTime          DateTime?                 @db.Time(0)
-  CreatedAt              DateTime?                 @default(now()) @db.Timestamp(0)
+  SpecialRequests        String?                  @db.Text
+  ArrivalTime            DateTime?                @db.Time(0)
+  DepartureTime          DateTime?                @db.Time(0)
+  CreatedAt              DateTime?                @default(now()) @db.Timestamp(0)
   RoomID                 Int
+  PackageID              Int?
   extra_charges          extra_charges[]
   payments               payments[]
   reservation_activities reservation_activities[]
-  customers              customers                 @relation(fields: [CustomerID], references: [CustomerID], onDelete: NoAction, onUpdate: NoAction, map: "reservations_ibfk_1")
-  rooms                  rooms                     @relation(fields: [RoomID], references: [RoomID], onDelete: NoAction, onUpdate: NoAction, map: "reservations_ibfk_2")
+  customers              customers                @relation(fields: [CustomerID], references: [CustomerID], onDelete: NoAction, onUpdate: NoAction, map: "reservations_ibfk_1")
+  rooms                  rooms                    @relation(fields: [RoomID], references: [RoomID], onDelete: NoAction, onUpdate: NoAction, map: "reservations_ibfk_2")
+  package_types          package_types?           @relation(fields: [PackageID], references: [PackageID], onDelete: NoAction, onUpdate: NoAction, map: "reservations_ibfk_3")
 
   @@index([CustomerID], map: "CustomerID")
   @@index([RoomID], map: "RoomID")
+  @@index([PackageID], map: "PackageID")
 }
 
 model rooms {
   RoomID       Int            @id @default(autoincrement())
   RoomNumber   Int            @unique(map: "RoomNumber")
-  Type         rooms_Type
   LocalPrice   Decimal        @db.Decimal(10, 2)
   Description  String?        @db.Text
   ForeignPrice Decimal        @db.Decimal(10, 2)
   MaxPeople    Int
+  TypeID       Int?
   reservations reservations[]
+  room_types   room_types?    @relation(fields: [TypeID], references: [TypeID], onDelete: NoAction, onUpdate: NoAction, map: "rooms_ibfk_1")
+
+  @@index([TypeID], map: "TypeID")
 }
 
 model activities {
@@ -127,6 +132,7 @@ model payments {
   PaymentMethod     payments_PaymentMethod
   ReservationID     Int?
   OrderID           Int?
+  Source            payments_Source        @default(Web)
   reservations      reservations?          @relation(fields: [ReservationID], references: [ReservationID], onUpdate: NoAction, map: "payments_ibfk_1")
   restaurant_orders restaurant_orders?     @relation(fields: [OrderID], references: [OrderID], onUpdate: NoAction, map: "payments_ibfk_2")
 
@@ -163,17 +169,29 @@ model users {
   UpdatedAt DateTime?  @default(now()) @db.Timestamp(0)
 }
 
+model package_types {
+  PackageID       Int            @id @default(autoincrement())
+  Name            String         @unique(map: "Name") @db.VarChar(50)
+  Description     String?        @db.Text
+  PriceMultiplier Decimal        @db.Decimal(3, 2)
+  ImagePath       String?        @db.VarChar(255)
+  CreatedAt       DateTime?      @default(now()) @db.Timestamp(0)
+  reservations    reservations[]
+}
+
+model room_types {
+  TypeID      Int       @id @default(autoincrement())
+  Name        String    @unique(map: "Name") @db.VarChar(50)
+  Description String?   @db.Text
+  ImagePath   String?   @db.VarChar(255)
+  CreatedAt   DateTime? @default(now()) @db.Timestamp(0)
+  rooms       rooms[]
+}
+
 enum customers_Title {
   Mr
   Mrs
   Ms
-}
-
-enum rooms_Type {
-  Cabana
-  Delux
-  Suite
-  Standard
 }
 
 enum reservations_Room_Status {
@@ -181,12 +199,6 @@ enum reservations_Room_Status {
   Confirmed
   Cancelled
   Completed
-}
-
-enum reservations_PackageType {
-  RoomOnly
-  HalfBoard
-  FullBoard
 }
 
 enum payments_PaymentMethod {
@@ -199,4 +211,10 @@ enum users_Role {
   ADMIN
   RECEPTION
   RESTAURANT
+}
+
+enum payments_Source {
+  Web
+  Reception
+  Restaurant
 }
