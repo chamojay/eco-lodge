@@ -102,7 +102,7 @@ const ReservationController = {
   getActiveReservations: async (req, res) => {
     try {
       const [reservations] = await pool.query(
-        `SELECT r.ReservationID, r.CheckOutDate, 
+        `SELECT r.ReservationID, r.CheckInDate, r.CheckOutDate, 
                 c.FirstName, c.LastName,
                 rm.RoomNumber,
                 r.TotalAmount

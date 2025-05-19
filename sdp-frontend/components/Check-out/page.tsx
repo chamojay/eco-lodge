@@ -38,6 +38,7 @@ import styles from '../../styles/checkout.module.css';
 
 interface Reservation {
   ReservationID: string;
+  CheckInDate: string;  // Add this line
   CheckOutDate: string;
   FirstName: string;
   LastName: string;
@@ -56,6 +57,14 @@ const getCheckoutStatus = (checkoutDate: string): 'today' | 'overdue' | 'future'
 const formatAmount = (amount: number | string): string => {
   const num = typeof amount === 'string' ? parseFloat(amount) : amount;
   return isNaN(num) ? '0.00' : num.toFixed(2);
+};
+
+const formatDate = (dateString: string | null | undefined): string => {
+  if (!dateString) return 'Not set';
+  const date = new Date(dateString);
+  return date instanceof Date && !isNaN(date.getTime()) 
+    ? date.toLocaleDateString()
+    : 'Invalid date';
 };
 
 const CheckOutComponent = () => {
@@ -194,8 +203,36 @@ const CheckOutComponent = () => {
                     }
                   >
                     <ListItemText
-                      primary={`${res.FirstName} ${res.LastName}`}
-                      secondary={`Room ${res.RoomNumber} - Checkout: ${new Date(res.CheckOutDate).toLocaleDateString()}`}
+                      primary={
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <Typography component="span">
+                            {res.FirstName} {res.LastName}
+                          </Typography>
+                          <Typography 
+                            component="span" 
+                            sx={{ 
+                              color: 'text.secondary',
+                              fontSize: '0.875rem',
+                              backgroundColor: '#f3f4f6',
+                              padding: '2px 8px',
+                              borderRadius: '4px'
+                            }}
+                          >
+                            | RES.ID: {res.ReservationID}
+                          </Typography>
+                        </Box>
+                      }
+                      secondary={
+                        <Box sx={{ mt: 0.5 }}>
+                          <Typography variant="body2" component="span">
+                            Room {res.RoomNumber} | Check-in: {
+                              res.CheckInDate ? new Date(res.CheckInDate).toLocaleDateString() : 'Not set'
+                            } | Check-out: {
+                              res.CheckOutDate ? new Date(res.CheckOutDate).toLocaleDateString() : 'Not set'
+                            }
+                          </Typography>
+                        </Box>
+                      }
                     />
                   </ListItem>
                 );
