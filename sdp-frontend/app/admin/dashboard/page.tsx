@@ -7,13 +7,14 @@ import {
   AppBar, Typography, IconButton, Button, Avatar, styled 
 } from '@mui/material';
 import {
-  Menu as MenuIcon, ChevronLeft, Dashboard, People, CalendarToday, Hotel, Restaurant, Assessment, Logout
+  Menu as MenuIcon, ChevronLeft, Dashboard, People, CalendarToday, Hotel, Restaurant, Assessment, Logout, LocalOffer, AttachMoney, EmojiEvents
 } from '@mui/icons-material';
 import AdminRooms from '@/components/Admin-Rooms/page';
 import AdminExtraCharges from '@/components/Admin-Extracharges/page';
 import AdminActivity from '@/components/Admin-Activity/page';
 import AdminRestaurant from '@/components/Admin-Restaurant/page';
 import AdminUserMGT from '@/components/Admin-UserMGT/page';
+import PackageTypeManagement from '@/components/Admin-PackageType/PackageTypeManagement';
 
 type MenuItemType = {
   id: string;
@@ -60,9 +61,10 @@ const AdminDashboard: React.FC = () => {
     { id: 'overview', label: 'Overview', icon: <Dashboard /> },
     { id: 'users', label: 'User Management', icon: <People /> },
     { id: 'rooms', label: 'Room Management', icon: <Hotel /> },
+    { id: 'package-types', label: 'Package Types', icon: <LocalOffer /> },
     { id: 'reservations', label: 'Reservations', icon: <CalendarToday /> },
-    { id: 'extra-charges', label: 'Extra Charges', icon: <Assessment /> },
-    { id: 'activities', label: 'Activities', icon: <Assessment /> },
+    { id: 'extra-charges', label: 'Extra Charges', icon: <AttachMoney /> },
+    { id: 'activities', label: 'Activities', icon: <EmojiEvents /> },
     { id: 'restaurant', label: 'Restaurant Management', icon: <Restaurant /> },
     { id: 'reports', label: 'Reports', icon: <Assessment /> },
   ];
@@ -79,6 +81,8 @@ const AdminDashboard: React.FC = () => {
         return <AdminRestaurant />;
       case 'users':
         return <AdminUserMGT />;
+      case 'package-types':
+        return <PackageTypeManagement />;
       default:
         return (
           <Box sx={{ p: 3 }}>

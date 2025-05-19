@@ -1,0 +1,159 @@
+.package-type-container {
+  padding: 24px;
+  max-width: 1200px;
+  margin: 0 auto;
+  background-color: #ffffff;
+}
+
+.header-section {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  padding: 16px;
+  background-color: #f5f5f5;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.header-title {
+  color: #1B5E20;
+  font-weight: 600;
+}
+
+.add-button {
+  background-color: #1B5E20 !important;
+  color: white !important;
+  padding: 8px 16px !important;
+  transition: background-color 0.3s ease !important;
+}
+
+.add-button:hover {
+  background-color: #0D3B1E !important;
+}
+
+.table-container {
+  margin-top: 20px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.table-row {
+  transition: background-color 0.2s ease;
+}
+
+.table-row:hover {
+  background-color: #f0f0f0;
+}
+
+.package-image {
+  width: 100px;
+  height: 100px;
+  object-fit: cover;
+  border-radius: 4px;
+  border: 2px solid #1B5E20;
+}
+
+.file-input {
+  margin-top: 16px;
+  width: 100%;
+  padding: 8px;
+  border: 2px dashed #1B5E20;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.file-input:hover {
+  border-color: #0D3B1E;
+}
+
+/* Dialog styles */
+.dialog-paper {
+  border-radius: 12px !important;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1) !important;
+}
+
+.dialog-title {
+  background-color: #1B5E20;
+  color: white !important;
+  padding: 16px 24px !important;
+  font-weight: 600 !important;
+}
+
+.dialog-content {
+  padding: 24px !important;
+}
+
+.form-field {
+  margin-bottom: 16px !important;
+}
+
+.form-field .MuiOutlinedInput-root {
+  border-radius: 8px;
+}
+
+.form-field .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline {
+  border-color: #1B5E20;
+}
+
+.dialog-actions {
+  padding: 16px 24px !important;
+  background-color: #f5f5f5;
+  border-top: 1px solid #e0e0e0;
+}
+
+.cancel-button {
+  border-color: #1B5E20 !important;
+  color: #1B5E20 !important;
+}
+
+.cancel-button:hover {
+  background-color: rgba(27, 94, 32, 0.04) !important;
+  border-color: #0D3B1E !important;
+}
+
+.submit-button {
+  background-color: #1B5E20 !important;
+  color: white !important;
+}
+
+.submit-button:hover {
+  background-color: #0D3B1E !important;
+}
+
+/* Action buttons */
+.action-button {
+  margin: 0 4px !important;
+  transition: transform 0.2s ease !important;
+}
+
+.action-button:hover {
+  transform: scale(1.1);
+}
+
+.action-button.edit {
+  color: #1B5E20 !important;
+}
+
+.action-button.delete {
+  color: #d32f2f !important;
+}
+
+/* Responsive styles */
+@media (max-width: 600px) {
+  .header-section {
+    flex-direction: column;
+    gap: 16px;
+    align-items: flex-start;
+  }
+
+  .package-image {
+    width: 60px;
+    height: 60px;
+  }
+
+  .dialog-paper {
+    margin: 16px !important;
+  }
+} 
