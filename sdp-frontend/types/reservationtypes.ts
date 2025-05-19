@@ -1,11 +1,20 @@
+export interface PackageType {
+  PackageID: number;
+  Name: string;
+  PriceMultiplier: number;
+  Description?: string;
+  ImagePath?: string;
+}
+
 export interface Room {
   RoomID: string;
-  RoomNumber: string;
-  Type: string;
+  RoomNumber: number;
+  TypeID: number;
+  TypeName: string;
   LocalPrice: number;
   ForeignPrice: number;
   MaxPeople: number;
-  Description: string;
+  Type?: string;
 }
 
 export interface Reservation {

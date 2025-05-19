@@ -19,11 +19,17 @@ import {
   TableRow,
   Checkbox,
   FormControlLabel,
-  Autocomplete
+  Autocomplete,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  FormHelperText,
 } from '@mui/material';
 import axios from 'axios';
 import { reservationService } from '@/app/services/reservationService';
-import { Room } from '@/types/reservationtypes';
+import { packageTypeService } from '@/app/services/packageTypeService';
+import { Room, PackageType } from '@/types/reservationtypes';
 
 const steps = ['Select Dates', 'Choose Room', 'Guest Details', 'Reservation Details', 'Review Invoice'];
 
@@ -62,7 +68,7 @@ const CheckInComponent = () => {
     PassportNumber: '',
   });
   const [reservationData, setReservationData] = useState({
-    PackageType: 'RoomOnly',
+    PackageID: '', // Change from 1 to empty string
     Adults: 1,
     Children: 0,
     SpecialRequests: '',
@@ -72,6 +78,8 @@ const CheckInComponent = () => {
   const [exchangeRate, setExchangeRate] = useState<number | null>(null);
   const [conversionError, setConversionError] = useState<string | null>(null);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
+  const [packageTypes, setPackageTypes] = useState<PackageType[]>([]);
+  const [packagesLoading, setPackagesLoading] = useState(false);
 
   const countries = [
     'Afghanistan', 'Albania', 'Algeria', 'Andorra', 'Angola', 
@@ -156,6 +164,31 @@ const CheckInComponent = () => {
       fetchExchangeRate();
     }
   }, [isSriLankan]);
+
+  // Fetch package types
+  useEffect(() => {
+    const fetchPackageTypes = async () => {
+      try {
+        setPackagesLoading(true);
+        const types = await packageTypeService.getAllPackageTypes();
+        console.log('Fetched package types:', types);
+        setPackageTypes(types);
+        // Set the default package ID after fetching
+        if (types && types.length > 0) {
+          setReservationData(prev => ({
+            ...prev,
+            PackageID: types[0].PackageID
+          }));
+        }
+      } catch (error) {
+        console.error('Error fetching package types:', error);
+      } finally {
+        setPackagesLoading(false);
+      }
+    };
+
+    fetchPackageTypes();
+  }, []);
 
   // Validation functions
   const validateStep0 = () => {
@@ -285,12 +318,8 @@ const CheckInComponent = () => {
     const pricePerNight = isSriLankan ? selectedRoom.LocalPrice : selectedRoom.ForeignPrice;
     const baseRoomPrice = pricePerNight * numberOfNights;
 
-    let packageMultiplier = 1;
-    if (reservationData.PackageType === 'HalfBoard') {
-      packageMultiplier = 1.3;
-    } else if (reservationData.PackageType === 'FullBoard') {
-      packageMultiplier = 1.5;
-    }
+    const selectedPackage = packageTypes.find(pkg => pkg.PackageID === reservationData.PackageID);
+    const packageMultiplier = selectedPackage?.PriceMultiplier || 1;
     const adjustedRoomPrice = baseRoomPrice * packageMultiplier;
 
     const serviceCharge = adjustedRoomPrice * 0.10;
@@ -311,7 +340,8 @@ const CheckInComponent = () => {
       totalPriceLKR,
       numberOfNights,
       currency: isSriLankan ? 'LKR' : 'USD',
-      currencyLKR: 'LKR'
+      currencyLKR: 'LKR',
+      packageName: selectedPackage?.Name || 'Room Only'
     };
   };
 
@@ -566,17 +596,35 @@ const CheckInComponent = () => {
       {activeStep === 3 && (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
           <Typography variant="h6">Reservation Details</Typography>
-          <TextField
-            select
-            label="Package Type"
-            value={reservationData.PackageType}
-            onChange={(e) => setReservationData({ ...reservationData, PackageType: e.target.value })}
-            SelectProps={{ native: true }}
-          >
-            <option value="RoomOnly">Room Only</option>
-            <option value="HalfBoard">Half Board</option>
-            <option value="FullBoard">Full Board</option>
-          </TextField>
+          <FormControl fullWidth error={!!errors.PackageID}>
+            <InputLabel>Package Type</InputLabel>
+            <Select
+              value={reservationData.PackageID}
+              onChange={(e) => {
+                console.log('Selected package:', e.target.value);
+                setReservationData({
+                  ...reservationData,
+                  PackageID: e.target.value
+                });
+              }}
+              label="Package Type"
+            >
+              {packagesLoading ? (
+                <MenuItem disabled>Loading packages...</MenuItem>
+              ) : packageTypes.length > 0 ? (
+                packageTypes.map((pkg) => (
+                  <MenuItem key={pkg.PackageID} value={pkg.PackageID}>
+                    {pkg.Name} ({((pkg.PriceMultiplier * 100) - 100).toFixed(0)}% extra)
+                  </MenuItem>
+                ))
+              ) : (
+                <MenuItem disabled>No package types available</MenuItem>
+              )}
+            </Select>
+            {errors.PackageID && (
+              <FormHelperText>{errors.PackageID}</FormHelperText>
+            )}
+          </FormControl>
           <TextField
             label="Adults"
             type="number"
@@ -665,8 +713,12 @@ const CheckInComponent = () => {
                   <TableCell align="right">{invoice.currency} {invoice.baseRoomPrice.toFixed(2)}</TableCell>
                 </TableRow>
                 <TableRow>
-                  <TableCell>Package Adjustment ({reservationData.PackageType})</TableCell>
-                  <TableCell align="right">{invoice.currency} {(invoice.adjustedRoomPrice - invoice.baseRoomPrice).toFixed(2)}</TableCell>
+                  <TableCell>
+                    Package Adjustment ({invoice.packageName})
+                  </TableCell>
+                  <TableCell align="right">
+                    {invoice.currency} {(invoice.adjustedRoomPrice - invoice.baseRoomPrice).toFixed(2)}
+                  </TableCell>
                 </TableRow>
                 <TableRow>
                   <TableCell>Service Charge (10%)</TableCell>
