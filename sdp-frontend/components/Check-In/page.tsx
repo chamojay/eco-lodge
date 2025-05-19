@@ -476,14 +476,21 @@ const CheckInComponent = () => {
                   sx={{ 
                     p: 2, 
                     border: selectedRoom?.RoomNumber === room.RoomNumber ? '2px solid #1a472a' : '1px solid #ddd',
-                    cursor: 'pointer'
+                    cursor: 'pointer',
+                    '&:hover': {
+                      backgroundColor: '#f5f5f5'
+                    }
                   }}
                 >
-                  <Typography variant="subtitle1">Room {room.RoomNumber}</Typography>
-                  <Typography>Type: {room.Type}</Typography>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 'bold', color: '#1a472a' }}>
+                    Room {room.RoomNumber}
+                  </Typography>
+                  <Typography>Type: {room.TypeName}</Typography>
                   <Typography>Max Guests: {room.MaxPeople}</Typography>
                   <Typography>
-                    Price: {isSriLankan ? `LKR ${room.LocalPrice}` : `USD ${room.ForeignPrice}`}/night
+                    Price: {isSriLankan 
+                      ? `LKR ${room.LocalPrice.toLocaleString()}` 
+                      : `USD ${room.ForeignPrice.toLocaleString()}`}/night
                   </Typography>
                 </Paper>
               </Grid>

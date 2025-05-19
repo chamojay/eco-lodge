@@ -14,7 +14,8 @@ export interface Room {
   LocalPrice: number;
   ForeignPrice: number;
   MaxPeople: number;
-  Type?: string;
+  Room_Status?: string;
+  Description?: string;
 }
 
 export interface Reservation {
