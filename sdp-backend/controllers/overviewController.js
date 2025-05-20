@@ -64,11 +64,11 @@ const getOverviewData = async (req, res) => {
       LIMIT 5
     `, [startDate]);
 
-    // Updated restaurant query with COALESCE and proper type casting
+    // Updated restaurant query to include popular items
     const [restaurant] = await connection.query(`
       SELECT 
-        COALESCE(COUNT(DISTINCT OrderID), 0) as TotalOrders,
-        COALESCE(SUM(CAST(TotalAmount AS DECIMAL(10,2))), 0) as Revenue,
+        COALESCE(COUNT(DISTINCT ro.OrderID), 0) as TotalOrders,
+        COALESCE(SUM(CAST(ro.TotalAmount AS DECIMAL(10,2))), 0) as Revenue,
         COALESCE((
           SELECT COUNT(*) 
           FROM restaurant_order_items roi
@@ -78,9 +78,25 @@ const getOverviewData = async (req, res) => {
             WHERE OrderDate >= ?
           )
         ), 0) as ItemsSold
-      FROM restaurant_orders
-      WHERE OrderDate >= ?
+      FROM restaurant_orders ro
+      WHERE ro.OrderDate >= ?
     `, [startDate, startDate]);
+
+    // Update the popularItems query to match your actual schema
+    const [popularItems] = await connection.query(`
+      SELECT 
+        mi.Name as name,
+        COUNT(*) as count,
+        SUM(roi.Quantity) as total_quantity
+      FROM restaurant_order_items roi
+      JOIN menu_items mi ON roi.ItemID = mi.ItemID
+      JOIN restaurant_orders ro ON roi.OrderID = ro.OrderID
+      WHERE ro.OrderDate >= ?
+        AND mi.IsActive = true
+      GROUP BY mi.ItemID, mi.Name
+      ORDER BY total_quantity DESC
+      LIMIT 5
+    `, [startDate]);
 
     // Updated occupancy query with proper type casting
     const [occupancy] = await connection.query(`
@@ -121,7 +137,10 @@ const getOverviewData = async (req, res) => {
         orders: Number(restaurant[0]?.TotalOrders || 0),
         revenue: Number(restaurant[0]?.Revenue || 0),
         itemsSold: Number(restaurant[0]?.ItemsSold || 0),
-        popularItems: []
+        popularItems: popularItems.map(item => ({
+          name: item.name,
+          count: Number(item.count)
+        }))
       },
       occupancyRate: Number(occupancy[0]?.OccupancyRate || 0)
     };

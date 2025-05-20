@@ -225,20 +225,33 @@ const AdminOverview: React.FC<AdminOverviewProps> = () => {
               </Typography>
               <Grid container spacing={3}>
                 <Grid item xs={12} md={4}>
-                  <Card>
-                    <CardContent>
-                      <Typography color="textSecondary">Total Orders</Typography>
-                      <Typography variant="h4">{data.restaurant.orders}</Typography>
-                    </CardContent>
-                  </Card>
+                  <Grid container spacing={2}>
+                    <Grid item xs={6}>
+                      <Card>
+                        <CardContent>
+                          <Typography color="textSecondary">Total Orders</Typography>
+                          <Typography variant="h4">{data.restaurant.orders}</Typography>
+                        </CardContent>
+                      </Card>
+                    </Grid>
+                    <Grid item xs={6}>
+                      <Card>
+                        <CardContent>
+                          <Typography color="textSecondary">Items Sold</Typography>
+                          <Typography variant="h4">{data.restaurant.itemsSold}</Typography>
+                        </CardContent>
+                      </Card>
+                    </Grid>
+                  </Grid>
                 </Grid>
                 <Grid item xs={12} md={8}>
+                  <Typography variant="subtitle1" gutterBottom>Popular Menu Items</Typography>
                   <ResponsiveContainer width="100%" height={200}>
                     <BarChart data={data.restaurant.popularItems}>
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="name" />
                       <YAxis />
-                      <Tooltip />
+                      <Tooltip formatter={(value) => [`${value} orders`, 'Count']} />
                       <Bar dataKey="count" fill="#1a472a" />
                     </BarChart>
                   </ResponsiveContainer>
