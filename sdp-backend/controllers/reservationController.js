@@ -28,7 +28,6 @@ const ReservationController = {
     }
   },
 
-  // Existing method for reception bookings (unchanged)
   createReservation: async (req, res) => {
     const connection = await pool.getConnection();
     try {
@@ -36,7 +35,6 @@ const ReservationController = {
 
       const { roomNumber, customerData, reservationData } = req.body;
 
-      // Insert customer details
       const [customerResult] = await connection.query(
         `INSERT INTO customers (FirstName, LastName, Email, Phone, Country, NIC, PassportNumber) 
          VALUES (?, ?, ?, ?, ?, ?, ?)`,
@@ -46,12 +44,11 @@ const ReservationController = {
           customerData.Email,
           customerData.Phone,
           customerData.Country,
-          customerData.NIC, // Match field name with frontend if needed
+          customerData.NIC,
           customerData.PassportNumber
         ]
       );
 
-      // Get Room ID from Room Number
       const [room] = await connection.query(
         'SELECT RoomID FROM rooms WHERE RoomNumber = ?',
         [roomNumber]
@@ -61,7 +58,6 @@ const ReservationController = {
         throw new Error('Room not found');
       }
 
-      // Insert reservation with PackageID
       const [reservationResult] = await connection.query(
         `INSERT INTO reservations (
           CustomerID, RoomID, CheckInDate, CheckOutDate, TotalAmount, 
@@ -84,13 +80,11 @@ const ReservationController = {
         ]
       );
 
-      // Fetch package type information for the email
       const [packageTypeResult] = await connection.query(
         `SELECT Name FROM package_types WHERE PackageID = ?`,
         [reservationData.PackageID]
       );
 
-      // Send confirmation email
       try {
         await emailService.sendReservationConfirmation({
           ...reservationResult,
@@ -105,7 +99,6 @@ const ReservationController = {
         });
       } catch (emailError) {
         console.error('Error sending confirmation email:', emailError);
-        // Don't fail the reservation if email fails
       }
 
       await connection.commit();
@@ -122,7 +115,6 @@ const ReservationController = {
     }
   },
 
-  // New method for web bookings
   createWebReservation: async (req, res) => {
     const connection = await pool.getConnection();
     try {
@@ -130,7 +122,6 @@ const ReservationController = {
 
       const { roomNumber, customerData, reservationData } = req.body;
 
-      // Insert customer details
       const [customerResult] = await connection.query(
         `INSERT INTO customers (FirstName, LastName, Email, Phone, Country, NIC, PassportNumber) 
          VALUES (?, ?, ?, ?, ?, ?, ?)`,
@@ -140,12 +131,11 @@ const ReservationController = {
           customerData.Email,
           customerData.Phone,
           customerData.Country,
-          customerData.Nic, // Match field name with frontend
+          customerData.Nic,
           customerData.Passport
         ]
       );
 
-      // Get Room ID from Room Number
       const [room] = await connection.query(
         'SELECT RoomID FROM rooms WHERE RoomNumber = ?',
         [roomNumber]
@@ -155,7 +145,6 @@ const ReservationController = {
         throw new Error('Room not found');
       }
 
-      // Insert reservation with PackageID
       const [reservationResult] = await connection.query(
         `INSERT INTO reservations (
           CustomerID, RoomID, CheckInDate, CheckOutDate, TotalAmount, 
@@ -178,25 +167,22 @@ const ReservationController = {
         ]
       );
 
-      // Insert payment record for web booking
       await connection.query(
         `INSERT INTO payments (Amount, PaymentMethod, ReservationID, Source, PaymentDate) 
          VALUES (?, ?, ?, ?, NOW())`,
         [
           reservationData.TotalAmount,
-          'Online', // Default for web bookings
+          'Online',
           reservationResult.insertId,
           'Web'
         ]
       );
 
-      // Fetch package type information for the email
       const [packageTypeResult] = await connection.query(
         `SELECT Name FROM package_types WHERE PackageID = ?`,
         [reservationData.PackageID]
       );
 
-      // Send confirmation email
       try {
         await emailService.sendReservationConfirmation({
           ...reservationResult,
@@ -211,7 +197,6 @@ const ReservationController = {
         });
       } catch (emailError) {
         console.error('Error sending confirmation email:', emailError);
-        // Don't fail the reservation if email fails
       }
 
       await connection.commit();
@@ -254,6 +239,15 @@ const ReservationController = {
     try {
       await connection.beginTransaction();
 
+      // Check if a payment exists for this reservation
+      const [existingPayments] = await connection.query(
+        'SELECT SUM(Amount) as PaidAmount FROM payments WHERE ReservationID = ? AND Source = ?',
+        [id, 'Web']
+      );
+
+      const hasPaidOnline = existingPayments[0].PaidAmount > 0;
+      const paidAmount = hasPaidOnline ? parseFloat(existingPayments[0].PaidAmount) : 0;
+
       // Calculate total amount including extra charges and activities
       const [reservation] = await connection.query(
         `SELECT 
@@ -272,15 +266,22 @@ const ReservationController = {
         [id]
       );
 
-      const finalTotal = parseFloat(reservation[0].TotalAmount) + 
+      if (!reservation[0]) {
+        throw new Error('Reservation not found');
+      }
+
+      // Calculate final total: include TotalAmount only if not paid online
+      const finalTotal = (hasPaidOnline ? 0 : parseFloat(reservation[0].TotalAmount)) + 
                         parseFloat(reservation[0].ExtraChargesTotal) + 
                         parseFloat(reservation[0].ActivitiesTotal);
 
-      // Insert payment record with Source as 'Reception'
-      await connection.query(
-        'INSERT INTO payments (Amount, PaymentMethod, ReservationID, Source, PaymentDate) VALUES (?, ?, ?, ?, NOW())',
-        [finalTotal, paymentMethod, id, 'Reception']
-      );
+      // Insert payment record only if there is an amount to pay
+      if (finalTotal > 0) {
+        await connection.query(
+          'INSERT INTO payments (Amount, PaymentMethod, ReservationID, Source, PaymentDate) VALUES (?, ?, ?, ?, NOW())',
+          [finalTotal, paymentMethod, id, 'Reception']
+        );
+      }
 
       // Update reservation status
       await connection.query(
@@ -292,7 +293,9 @@ const ReservationController = {
       res.json({ 
         success: true,
         totalAmount: finalTotal,
-        message: 'Checkout completed and payment recorded'
+        baseAmountPaidOnline: hasPaidOnline,
+        paidAmount: paidAmount,
+        message: hasPaidOnline ? 'Checkout completed, base amount was paid online' : 'Checkout completed and payment recorded'
       });
     } catch (error) {
       await connection.rollback();

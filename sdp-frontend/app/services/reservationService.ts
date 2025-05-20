@@ -13,6 +13,15 @@ export const reservationService = {
     return response.data;
   },
 
+  createWebReservation: async (roomNumber: string, customerData: any, reservationData: any) => {
+    const response = await axios.post(`${API_URL}/web`, { 
+      roomNumber, 
+      customerData, 
+      reservationData 
+    });
+    return response.data;
+  },
+
   getActiveReservations: async () => {
     const response = await axios.get(`${API_URL}/active`);
     return response.data.map((res: any) => ({
@@ -23,9 +32,15 @@ export const reservationService = {
 
   completeCheckout: async (reservationID: string, paymentMethod: string) => {
     const response = await axios.put(`${API_URL}/checkout/${reservationID}`, {
-        paymentMethod
+      paymentMethod
     });
-    return response.data;
+    return {
+      success: response.data.success,
+      totalAmount: response.data.totalAmount,
+      baseAmountPaidOnline: response.data.baseAmountPaidOnline,
+      paidAmount: response.data.paidAmount,
+      message: response.data.message
+    };
   },
 
   getAllRoomsStatus: async () => {

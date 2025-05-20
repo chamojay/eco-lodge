@@ -38,7 +38,7 @@ import styles from '../../styles/checkout.module.css';
 
 interface Reservation {
   ReservationID: string;
-  CheckInDate: string;  // Add this line
+  CheckInDate: string;
   CheckOutDate: string;
   FirstName: string;
   LastName: string;
@@ -54,7 +54,8 @@ const getCheckoutStatus = (checkoutDate: string): 'today' | 'overdue' | 'future'
   return checkoutMidnight < todayMidnight ? 'overdue' : checkoutMidnight.getTime() === todayMidnight.getTime() ? 'today' : 'future';
 };
 
-const formatAmount = (amount: number | string): string => {
+const formatAmount = (amount: number | string | undefined): string => {
+  if (amount === undefined) return '0.00';
   const num = typeof amount === 'string' ? parseFloat(amount) : amount;
   return isNaN(num) ? '0.00' : num.toFixed(2);
 };
@@ -79,7 +80,11 @@ const CheckOutComponent = () => {
   const [newCharge, setNewCharge] = useState<ExtraCharge>({ ChargeID: 0, Description: '', Amount: 0, ReservationID: 0, TypeID: null });
   const [openConfirmDialog, setOpenConfirmDialog] = useState(false);
   const [openSuccessSnackbar, setOpenSuccessSnackbar] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<'Cash' | 'Card' | 'Online'>('Cash');
+  const [openErrorSnackbar, setOpenErrorSnackbar] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState<'Cash' | 'Card'>('Cash');
+  const [baseAmountPaidOnline, setBaseAmountPaidOnline] = useState<boolean>(false);
+  const [paidAmount, setPaidAmount] = useState<number>(0);
 
   useEffect(() => {
     const fetchInitialData = async () => {
@@ -92,6 +97,8 @@ const CheckOutComponent = () => {
         setExtraChargeTypes(typesData);
       } catch (error) {
         console.error('Error fetching initial data:', error);
+        setErrorMessage('Failed to load reservations');
+        setOpenErrorSnackbar(true);
       }
       setLoading(false);
     };
@@ -100,19 +107,26 @@ const CheckOutComponent = () => {
 
   const fetchReservationDetails = async (reservationId: string) => {
     try {
-      const [charges, activities] = await Promise.all([
+      const [charges, activities, paymentStatus] = await Promise.all([
         extraChargesService.getChargesByReservation(Number(reservationId)),
-        activityService.getActivitiesForReservation(Number(reservationId))
+        activityService.getActivitiesForReservation(Number(reservationId)),
+        reservationService.getPaymentStatus(reservationId)
       ]);
       setExtraCharges(charges);
       setActivities(activities);
+      setBaseAmountPaidOnline(paymentStatus.hasPayment || false);
+      setPaidAmount(paymentStatus.paidAmount || 0);
     } catch (error) {
       console.error('Error fetching reservation details:', error);
+      setErrorMessage('Failed to load reservation details');
+      setOpenErrorSnackbar(true);
     }
   };
 
   const handleViewInvoice = async (reservation: Reservation) => {
     setSelectedReservation(reservation);
+    setBaseAmountPaidOnline(false); // Reset to avoid stale state
+    setPaidAmount(0);
     await fetchReservationDetails(reservation.ReservationID);
     setNewCharge({ ...newCharge, ReservationID: Number(reservation.ReservationID) });
     setView('invoice');
@@ -128,10 +142,12 @@ const CheckOutComponent = () => {
         Amount: Number(newCharge.Amount)
       });
       await fetchReservationDetails(selectedReservation.ReservationID);
-      setNewCharge({ ChargeID: 0, Description: '', Amount: 0, ReservationID: Number(selectedReservation.ReservationID), TypeID: null });
+      setNewCharge({ ...newCharge, Description: '', Amount: 0, TypeID: null });
       setView('invoice');
     } catch (error) {
       console.error('Error adding charge:', error);
+      setErrorMessage('Failed to add extra charge');
+      setOpenErrorSnackbar(true);
     }
   };
 
@@ -141,6 +157,8 @@ const CheckOutComponent = () => {
       selectedReservation && await fetchReservationDetails(selectedReservation.ReservationID);
     } catch (error) {
       console.error('Error removing charge:', error);
+      setErrorMessage('Failed to remove charge');
+      setOpenErrorSnackbar(true);
     }
   };
 
@@ -148,22 +166,26 @@ const CheckOutComponent = () => {
     if (!selectedReservation) return;
     setProcessing(selectedReservation.ReservationID);
     try {
-      await reservationService.completeCheckout(selectedReservation.ReservationID, paymentMethod);
+      const response = await reservationService.completeCheckout(selectedReservation.ReservationID, paymentMethod);
       setReservations(reservations.filter(r => r.ReservationID !== selectedReservation.ReservationID));
       setView('list');
       setSelectedReservation(null);
       setExtraCharges([]);
       setActivities([]);
+      setBaseAmountPaidOnline(false);
+      setPaidAmount(0);
       setOpenConfirmDialog(false);
       setOpenSuccessSnackbar(true);
     } catch (error) {
       console.error('Checkout failed:', error);
+      setErrorMessage('Checkout failed. Please try again.');
+      setOpenErrorSnackbar(true);
     }
     setProcessing(null);
   };
 
   const totalInvoice = (
-    (selectedReservation?.TotalAmount || 0) +
+    (baseAmountPaidOnline ? 0 : (selectedReservation?.TotalAmount || 0)) +
     extraCharges.reduce((sum, charge) => sum + (typeof charge.Amount === 'string' ? parseFloat(charge.Amount) : charge.Amount) || 0, 0) +
     activities.reduce((sum, activity) => sum + (typeof activity.Amount === 'string' ? parseFloat(activity.Amount) : activity.Amount) || 0, 0)
   ).toFixed(2);
@@ -225,11 +247,7 @@ const CheckOutComponent = () => {
                       secondary={
                         <Box sx={{ mt: 0.5 }}>
                           <Typography variant="body2" component="span">
-                            Room {res.RoomNumber} | Check-in: {
-                              res.CheckInDate ? new Date(res.CheckInDate).toLocaleDateString() : 'Not set'
-                            } | Check-out: {
-                              res.CheckOutDate ? new Date(res.CheckOutDate).toLocaleDateString() : 'Not set'
-                            }
+                            Room {res.RoomNumber} | Check-in: {formatDate(res.CheckInDate)} | Check-out: {formatDate(res.CheckOutDate)}
                           </Typography>
                         </Box>
                       }
@@ -265,7 +283,13 @@ const CheckOutComponent = () => {
                     <TableRow>
                       <TableCell>Room Charges</TableCell>
                       <TableCell>Base reservation cost</TableCell>
-                      <TableCell align="right">LKR {formatAmount(selectedReservation?.TotalAmount)}</TableCell>
+                      <TableCell align="right">
+                        {baseAmountPaidOnline ? (
+                          <Typography color="success.main">Paid Online (LKR {formatAmount(paidAmount)})</Typography>
+                        ) : (
+                          `LKR ${formatAmount(selectedReservation?.TotalAmount)}`
+                        )}
+                      </TableCell>
                       <TableCell></TableCell>
                     </TableRow>
                     {activities.map(activity => (
@@ -383,7 +407,13 @@ const CheckOutComponent = () => {
           <DialogContentText>
             Checkout Summary for {selectedReservation?.FirstName} {selectedReservation?.LastName}:
             <Box component="ul" sx={{ mt: 1, pl: 2 }}>
-              <li>Room Charges: LKR {formatAmount(selectedReservation?.TotalAmount)}</li>
+              <li>
+                Room Charges: {baseAmountPaidOnline ? (
+                  <Typography component="span" color="success.main">Paid Online (LKR {formatAmount(paidAmount)})</Typography>
+                ) : (
+                  `LKR ${formatAmount(selectedReservation?.TotalAmount)}`
+                )}
+              </li>
               {activities.length > 0 && (
                 <li>Activity Charges: LKR {formatAmount(activities.reduce((sum, a) => sum + Number(a.Amount), 0))}</li>
               )}
@@ -397,12 +427,11 @@ const CheckOutComponent = () => {
             <InputLabel>Payment Method</InputLabel>
             <Select
               value={paymentMethod}
-              onChange={(e) => setPaymentMethod(e.target.value as 'Cash' | 'Card' | 'Online')}
+              onChange={(e) => setPaymentMethod(e.target.value as 'Cash' | 'Card')}
               label="Payment Method"
             >
               <MenuItem value="Cash">Cash</MenuItem>
               <MenuItem value="Card">Card</MenuItem>
-              <MenuItem value="Online">Online</MenuItem>
             </Select>
           </FormControl>
         </DialogContent>
@@ -426,6 +455,17 @@ const CheckOutComponent = () => {
       >
         <Alert severity="success" onClose={() => setOpenSuccessSnackbar(false)}>
           Checkout completed successfully for {selectedReservation?.FirstName} {selectedReservation?.LastName}!
+        </Alert>
+      </Snackbar>
+
+      <Snackbar
+        open={openErrorSnackbar}
+        autoHideDuration={6000}
+        onClose={() => setOpenErrorSnackbar(false)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert severity="error" onClose={() => setOpenErrorSnackbar(false)}>
+          {errorMessage}
         </Alert>
       </Snackbar>
     </Box>
