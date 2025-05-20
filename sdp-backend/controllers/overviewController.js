@@ -22,10 +22,19 @@ const getOverviewData = async (req, res) => {
     }
 
     // Updated revenue query with COALESCE and proper type casting
+    // Update the revenue query to include web payments
     const [revenue] = await connection.query(`
       SELECT 
-        COALESCE(SUM(CASE WHEN p.Source = 'Reception' THEN CAST(p.Amount AS DECIMAL(10,2)) ELSE 0 END), 0) as RoomRevenue,
-        COALESCE(SUM(CASE WHEN p.Source = 'Restaurant' THEN CAST(p.Amount AS DECIMAL(10,2)) ELSE 0 END), 0) as RestaurantRevenue,
+        COALESCE(SUM(CASE 
+          WHEN p.Source IN ('Reception', 'Web') 
+          THEN CAST(p.Amount AS DECIMAL(10,2)) 
+          ELSE 0 
+        END), 0) as RoomRevenue,
+        COALESCE(SUM(CASE 
+          WHEN p.Source = 'Restaurant' 
+          THEN CAST(p.Amount AS DECIMAL(10,2)) 
+          ELSE 0 
+        END), 0) as RestaurantRevenue,
         COALESCE((
           SELECT SUM(CAST(Amount AS DECIMAL(10,2))) 
           FROM reservation_activities 
@@ -109,6 +118,47 @@ const getOverviewData = async (req, res) => {
         AND CURRENT_DATE BETWEEN r.CheckInDate AND r.CheckOutDate
     `);
 
+    // Add new queries for room analytics
+    // Update the roomTypeStats query to match your schema
+    const [roomTypeStats] = await connection.query(`
+      SELECT 
+        rt.Name as roomType,
+        COUNT(*) as bookingCount,
+        ROUND(AVG(r.TotalAmount), 2) as averageRevenue
+      FROM reservations r
+      JOIN rooms rm ON r.RoomID = rm.RoomID
+      JOIN room_types rt ON rm.TypeID = rt.TypeID  -- Changed RoomTypeID to TypeID
+      WHERE r.CreatedAt >= ?
+      GROUP BY rt.TypeID, rt.Name  -- Changed RoomTypeID to TypeID
+      ORDER BY bookingCount DESC
+    `, [startDate]);
+
+    // Update the packageStats query
+    const [packageStats] = await connection.query(`
+      SELECT 
+        pt.Name as packageName,
+        COUNT(*) as bookingCount,
+        ROUND(AVG(r.TotalAmount), 2) as averageRevenue
+      FROM reservations r
+      JOIN package_types pt ON r.PackageID = pt.PackageID
+      WHERE r.CreatedAt >= ?
+      GROUP BY pt.PackageID
+      ORDER BY bookingCount DESC
+    `, [startDate]);
+
+    // Update the countryStats query
+    const [countryStats] = await connection.query(`
+      SELECT 
+        c.Country as name,
+        COUNT(*) as visitors
+      FROM reservations r
+      JOIN customers c ON r.CustomerID = c.CustomerID
+      WHERE r.CreatedAt >= ?
+      GROUP BY c.Country
+      ORDER BY visitors DESC
+      LIMIT 10
+    `, [startDate]);
+
     // Ensure all values are properly formatted before sending response
     const responseData = {
       timeRange: range,
@@ -142,7 +192,23 @@ const getOverviewData = async (req, res) => {
           count: Number(item.count)
         }))
       },
-      occupancyRate: Number(occupancy[0]?.OccupancyRate || 0)
+      occupancyRate: Number(occupancy[0]?.OccupancyRate || 0),
+      roomAnalytics: {
+        popularRoomTypes: roomTypeStats.map(rt => ({
+          name: rt.roomType,
+          bookings: Number(rt.bookingCount),
+          averageRevenue: Number(rt.averageRevenue)
+        })),
+        popularPackages: packageStats.map(pkg => ({
+          name: pkg.packageName,
+          bookings: Number(pkg.bookingCount),
+          averageRevenue: Number(pkg.averageRevenue)
+        })),
+        topCountries: countryStats.map(country => ({
+          name: country.Country,
+          visitors: Number(country.visitorCount)
+        }))
+      }
     };
 
     // Calculate total revenue

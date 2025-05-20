@@ -24,4 +24,20 @@ export interface OverviewData {
     popularItems: Array<{ name: string; count: number }>;
   };
   occupancyRate: number;
+  roomAnalytics: {
+    popularRoomTypes: Array<{
+      name: string;
+      bookings: number;
+      averageRevenue: number;
+    }>;
+    popularPackages: Array<{
+      name: string;
+      bookings: number;
+      averageRevenue: number;
+    }>;
+    topCountries: Array<{
+      name: string;
+      visitors: number;
+    }>;
+  };
 }

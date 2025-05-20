@@ -259,6 +259,71 @@ const AdminOverview: React.FC<AdminOverviewProps> = () => {
               </Grid>
             </Paper>
           </Grid>
+
+          {/* Room Analytics Section */}
+          <Grid item xs={12}>
+            <Paper sx={{ p: 3 }}>
+              <Typography variant="h6" gutterBottom>
+                Room Analytics
+              </Typography>
+              <Grid container spacing={3}>
+                {/* Popular Room Types */}
+                <Grid item xs={12} md={4}>
+                  <Typography variant="subtitle1" gutterBottom>Popular Room Types</Typography>
+                  <ResponsiveContainer width="100%" height={200}>
+                    <BarChart data={data.roomAnalytics.popularRoomTypes}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="name" />
+                      <YAxis yAxisId="left" orientation="left" stroke="#8884d8" />
+                      <YAxis yAxisId="right" orientation="right" stroke="#82ca9d" />
+                      <Tooltip />
+                      <Bar yAxisId="left" dataKey="bookings" fill="#8884d8" name="Bookings" />
+                      <Bar yAxisId="right" dataKey="averageRevenue" fill="#82ca9d" name="Avg. Revenue" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </Grid>
+
+                {/* Popular Packages */}
+                <Grid item xs={12} md={4}>
+                  <Typography variant="subtitle1" gutterBottom>Popular Packages</Typography>
+                  <ResponsiveContainer width="100%" height={200}>
+                    <BarChart data={data.roomAnalytics.popularPackages}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="name" />
+                      <YAxis />
+                      <Tooltip />
+                      <Bar dataKey="bookings" fill="#1a472a" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </Grid>
+
+                {/* Top Countries */}
+                <Grid item xs={12} md={4}>
+                  <Typography variant="subtitle1" gutterBottom>Top Visitor Countries</Typography>
+                  <ResponsiveContainer width="100%" height={200}>
+                    <PieChart>
+                      <Pie
+                        data={data.roomAnalytics.topCountries}
+                        dataKey="visitors"
+                        nameKey="name"
+                        cx="50%"
+                        cy="50%"
+                        outerRadius={80}
+                        fill="#8884d8"
+                        label
+                      >
+                        {data.roomAnalytics.topCountries.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                      <Legend />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </Grid>
+              </Grid>
+            </Paper>
+          </Grid>
         </Grid>
       </Box>
     </ThemeProvider>
