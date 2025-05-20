@@ -388,9 +388,13 @@ const ReservationController = {
     const { id } = req.params;
     try {
       const [reservation] = await pool.query(
-        `SELECT r.*, c.* 
+        `SELECT r.*, c.*, rm.RoomNumber,
+                COALESCE(p.PaymentMethod, '') as PaymentMethod,
+                COALESCE(p.Source, '') as PaymentSource
          FROM reservations r 
          JOIN customers c ON r.CustomerID = c.CustomerID 
+         JOIN rooms rm ON r.RoomID = rm.RoomID
+         LEFT JOIN payments p ON r.ReservationID = p.ReservationID
          WHERE r.ReservationID = ?`,
         [id]
       );
@@ -401,6 +405,7 @@ const ReservationController = {
 
       res.json(reservation[0]);
     } catch (error) {
+      console.error('Error fetching reservation details:', error);
       res.status(500).json({ error: error.message });
     }
   },

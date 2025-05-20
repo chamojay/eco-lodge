@@ -22,4 +22,6 @@ router.put('/update/:id', controller.updateReservation);
 //route to create online reservation
 router.post('/web', controller.createWebReservation);
 
+router.get('/:id', controller.getReservationDetails);
+
 module.exports = router;

@@ -44,6 +44,9 @@ interface Reservation {
   LastName: string;
   RoomNumber: string;
   TotalAmount: number;
+  PaymentStatus?: string;
+  PaymentMethod?: string;
+  PaymentSource?: string;
 }
 
 const getCheckoutStatus = (checkoutDate: string): 'today' | 'overdue' | 'future' => {
@@ -106,15 +109,15 @@ const CheckOutComponent = () => {
 
   const fetchReservationDetails = async (reservationId: string) => {
     try {
-      const [charges, activities, paymentStatus] = await Promise.all([
+      const [charges, activities, reservation] = await Promise.all([
         extraChargesService.getChargesByReservation(Number(reservationId)),
         activityService.getActivitiesForReservation(Number(reservationId)),
-        reservationService.getPaymentStatus(reservationId)
+        reservationService.getReservationDetails(reservationId)
       ]);
       setExtraCharges(charges);
       setActivities(activities);
-      setBaseAmountPaidOnline(paymentStatus.hasPayment || false);
-      setPaidAmount(paymentStatus.paidAmount || 0);
+      setBaseAmountPaidOnline(reservation.PaymentSource === 'Web');
+      setPaidAmount(reservation.TotalAmount || 0);
     } catch (error) {
       console.error('Error fetching reservation details:', error);
       setErrorMessage('Failed to load reservation details');
@@ -284,13 +287,32 @@ const CheckOutComponent = () => {
                       <TableCell>Base reservation cost</TableCell>
                       <TableCell align="right">
                         {baseAmountPaidOnline ? (
-                          <Typography color="success.main">Paid Online (LKR {formatAmount(paidAmount)})</Typography>
+                          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 1 }}>
+                            <Typography color="success.main">
+                              Paid Online
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary">
+                              (LKR {formatAmount(paidAmount)})
+                            </Typography>
+                          </Box>
                         ) : (
                           `LKR ${formatAmount(selectedReservation?.TotalAmount)}`
                         )}
                       </TableCell>
                       <TableCell></TableCell>
                     </TableRow>
+                    
+                    {/* Only show additional charges if they exist */}
+                    {activities.length > 0 && (
+                      <TableRow>
+                        <TableCell colSpan={4}>
+                          <Typography variant="subtitle2" sx={{ fontWeight: 'bold', my: 1 }}>
+                            Additional Charges
+                          </Typography>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                    
                     {activities.map(activity => (
                       <TableRow key={`activity-${activity.ReservationActivityID}`}>
                         <TableCell>Activity</TableCell>
@@ -304,6 +326,7 @@ const CheckOutComponent = () => {
                         <TableCell></TableCell>
                       </TableRow>
                     ))}
+
                     {extraCharges.map(charge => (
                       <TableRow key={charge.ChargeID}>
                         <TableCell>{charge.TypeName || 'Custom'}</TableCell>
@@ -316,11 +339,17 @@ const CheckOutComponent = () => {
                         </TableCell>
                       </TableRow>
                     ))}
-                    <TableRow>
-                      <TableCell colSpan={2}><strong>Grand Total</strong></TableCell>
-                      <TableCell align="right"><strong>LKR {totalInvoice}</strong></TableCell>
-                      <TableCell></TableCell>
-                    </TableRow>
+
+                    {/* Only show total if there are additional charges or the base amount wasn't paid online */}
+                    {(!baseAmountPaidOnline || activities.length > 0 || extraCharges.length > 0) && (
+                      <TableRow>
+                        <TableCell colSpan={2}><strong>Amount Due</strong></TableCell>
+                        <TableCell align="right">
+                          <strong>LKR {totalInvoice}</strong>
+                        </TableCell>
+                        <TableCell></TableCell>
+                      </TableRow>
+                    )}
                   </TableBody>
                 </Table>
               </TableContainer>
@@ -408,7 +437,9 @@ const CheckOutComponent = () => {
             <Box component="ul" sx={{ mt: 1, pl: 2 }}>
               <li>
                 Room Charges: {baseAmountPaidOnline ? (
-                  <Typography component="span" color="success.main">Paid Online (LKR {formatAmount(paidAmount)})</Typography>
+                  <Typography component="span" color="success.main">
+                    Paid Online (LKR {formatAmount(paidAmount)})
+                  </Typography>
                 ) : (
                   `LKR ${formatAmount(selectedReservation?.TotalAmount)}`
                 )}
@@ -419,20 +450,26 @@ const CheckOutComponent = () => {
               {extraCharges.length > 0 && (
                 <li>Extra Charges: LKR {formatAmount(extraCharges.reduce((sum, c) => sum + Number(c.Amount), 0))}</li>
               )}
-              <li><strong>Total Amount Due: LKR {totalInvoice}</strong></li>
+              {(!baseAmountPaidOnline || activities.length > 0 || extraCharges.length > 0) && (
+                <li><strong>Total Amount Due: LKR {totalInvoice}</strong></li>
+              )}
             </Box>
           </DialogContentText>
-          <FormControl fullWidth sx={{ mt: 2 }}>
-            <InputLabel>Payment Method</InputLabel>
-            <Select
-              value={paymentMethod}
-              onChange={(e) => setPaymentMethod(e.target.value as 'Cash' | 'Card')}
-              label="Payment Method"
-            >
-              <MenuItem value="Cash">Cash</MenuItem>
-              <MenuItem value="Card">Card</MenuItem>
-            </Select>
-          </FormControl>
+
+          {/* Only show payment method if there's an amount due */}
+          {Number(totalInvoice) > 0 && (
+            <FormControl fullWidth sx={{ mt: 2 }}>
+              <InputLabel>Payment Method</InputLabel>
+              <Select
+                value={paymentMethod}
+                onChange={(e) => setPaymentMethod(e.target.value as 'Cash' | 'Card')}
+                label="Payment Method"
+              >
+                <MenuItem value="Cash">Cash</MenuItem>
+                <MenuItem value="Card">Card</MenuItem>
+              </Select>
+            </FormControl>
+          )}
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setOpenConfirmDialog(false)}>Cancel</Button>

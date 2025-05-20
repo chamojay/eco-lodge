@@ -46,5 +46,26 @@ export const reservationService = {
   getAllRoomsStatus: async () => {
     const response = await axios.get(`${API_URL}/room-status`);
     return response.data;
-  }
+  },
+
+  getReservationDetails: async (reservationId: string) => {
+    try {
+      const response = await fetch(`${API_URL}/${reservationId}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch reservation details');
+      }
+
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Error fetching reservation details:', error);
+      throw error;
+    }
+  },
 };
