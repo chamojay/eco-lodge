@@ -16,6 +16,9 @@ import AdminRestaurant from '@/components/Admin-Restaurant/page';
 import AdminUserMGT from '@/components/Admin-UserMGT/page';
 import PackageTypeManagement from '@/components/Admin-PackageType/PackageTypeManagement';
 import AdminOverview from '@/components/Admin-Overview/page';
+import ReportComponent from '@/components/Admin-Reports/page';
+import { LocalizationProvider } from '@mui/x-date-pickers';
+import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 
 type MenuItemType = {
   id: string;
@@ -86,6 +89,8 @@ const AdminDashboard: React.FC = () => {
         return <AdminUserMGT />;
       case 'package-types':
         return <PackageTypeManagement />;
+      case 'reports':
+        return <ReportComponent />;
       default:
         return (
           <Box sx={{ p: 3 }}>
@@ -98,74 +103,76 @@ const AdminDashboard: React.FC = () => {
   };
 
   return (
-    <Box sx={{ display: 'flex' }}>
-      <CssBaseline />
-      <AppBar position="fixed" sx={{ zIndex: (theme) => theme.zIndex.drawer + 1, backgroundColor: '#1a472a' }}>
-        <Toolbar>
-          <IconButton color="inherit" onClick={handleDrawerToggle} edge="start" sx={{ mr: 2 }}>
-            {open ? <ChevronLeft /> : <MenuIcon />}
-          </IconButton>
-          <Typography variant="h6" noWrap component="div" sx={{ color: 'white' }}>
-            Hotel Admin Dashboard
-          </Typography>
-        </Toolbar>
-      </AppBar>
-      <Drawer
-        sx={{
-          width: drawerWidth,
-          flexShrink: 0,
-          '& .MuiDrawer-paper': {
+    <LocalizationProvider dateAdapter={AdapterDayjs}>
+      <Box sx={{ display: 'flex' }}>
+        <CssBaseline />
+        <AppBar position="fixed" sx={{ zIndex: (theme) => theme.zIndex.drawer + 1, backgroundColor: '#1a472a' }}>
+          <Toolbar>
+            <IconButton color="inherit" onClick={handleDrawerToggle} edge="start" sx={{ mr: 2 }}>
+              {open ? <ChevronLeft /> : <MenuIcon />}
+            </IconButton>
+            <Typography variant="h6" noWrap component="div" sx={{ color: 'white' }}>
+              Hotel Admin Dashboard
+            </Typography>
+          </Toolbar>
+        </AppBar>
+        <Drawer
+          sx={{
             width: drawerWidth,
-            boxSizing: 'border-box',
-            backgroundColor: '#1a472a',
-            color: 'white',
-          },
-        }}
-        variant="persistent"
-        anchor="left"
-        open={open}
-      >
-        <Toolbar />
-        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', p: 2 }}>
-          <Avatar 
-            src="/logo.png" 
-            sx={{ width: open ? 80 : 40, height: open ? 80 : 40, mb: 1, transition: '0.3s', backgroundColor: 'white' }}
-          />
-          <Typography variant="h6" sx={{ opacity: open ? 1 : 0, transition: '0.3s' }}>
-            Hotel Algama Ella
-          </Typography>
-        </Box>
-        <List>
-          {menuItems.map((item) => (
-            <ListItem key={item.id} disablePadding>
-              <ListItemButton 
-                selected={selectedMenu === item.id} 
-                onClick={() => setSelectedMenu(item.id)}
-                sx={{ '&.Mui-selected': { backgroundColor: '#2e7d32', '&:hover': { backgroundColor: '#2e7d32' } } }}
-              >
-                <ListItemIcon sx={{ color: 'white' }}>{item.icon}</ListItemIcon>
-                {open && <ListItemText primary={item.label} />}
-              </ListItemButton>
-            </ListItem>
-          ))}
-        </List>
-        <Box sx={{ mt: 'auto', p: 2 }}>
-          <Button 
-            fullWidth 
-            variant="contained" 
-            startIcon={<Logout sx={{ color: 'white' }} />} 
-            onClick={handleLogout}
-            sx={{ backgroundColor: '#d32f2f', '&:hover': { backgroundColor: '#9a0007' } }}
-          >
-            Logout
-          </Button>
-        </Box>
-      </Drawer>
-      <Main open={open}>
-        <Toolbar />
-        {renderContent()}
-      </Main>
-    </Box>
+            flexShrink: 0,
+            '& .MuiDrawer-paper': {
+              width: drawerWidth,
+              boxSizing: 'border-box',
+              backgroundColor: '#1a472a',
+              color: 'white',
+            },
+          }}
+          variant="persistent"
+          anchor="left"
+          open={open}
+        >
+          <Toolbar />
+          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', p: 2 }}>
+            <Avatar 
+              src="/logo.png" 
+              sx={{ width: open ? 80 : 40, height: open ? 80 : 40, mb: 1, transition: '0.3s', backgroundColor: 'white' }}
+            />
+            <Typography variant="h6" sx={{ opacity: open ? 1 : 0, transition: '0.3s' }}>
+              Hotel Algama Ella
+            </Typography>
+          </Box>
+          <List>
+            {menuItems.map((item) => (
+              <ListItem key={item.id} disablePadding>
+                <ListItemButton 
+                  selected={selectedMenu === item.id} 
+                  onClick={() => setSelectedMenu(item.id)}
+                  sx={{ '&.Mui-selected': { backgroundColor: '#2e7d32', '&:hover': { backgroundColor: '#2e7d32' } } }}
+                >
+                  <ListItemIcon sx={{ color: 'white' }}>{item.icon}</ListItemIcon>
+                  {open && <ListItemText primary={item.label} />}
+                </ListItemButton>
+              </ListItem>
+            ))}
+          </List>
+          <Box sx={{ mt: 'auto', p: 2 }}>
+            <Button 
+              fullWidth 
+              variant="contained" 
+              startIcon={<Logout sx={{ color: 'white' }} />} 
+              onClick={handleLogout}
+              sx={{ backgroundColor: '#d32f2f', '&:hover': { backgroundColor: '#9a0007' } }}
+            >
+              Logout
+            </Button>
+          </Box>
+        </Drawer>
+        <Main open={open}>
+          <Toolbar />
+          {renderContent()}
+        </Main>
+      </Box>
+    </LocalizationProvider>
   );
 };
 
