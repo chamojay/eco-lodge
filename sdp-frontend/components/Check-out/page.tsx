@@ -54,8 +54,7 @@ const getCheckoutStatus = (checkoutDate: string): 'today' | 'overdue' | 'future'
   return checkoutMidnight < todayMidnight ? 'overdue' : checkoutMidnight.getTime() === todayMidnight.getTime() ? 'today' : 'future';
 };
 
-const formatAmount = (amount: number | string | undefined): string => {
-  if (amount === undefined) return '0.00';
+const formatAmount = (amount: number | string): string => {
   const num = typeof amount === 'string' ? parseFloat(amount) : amount;
   return isNaN(num) ? '0.00' : num.toFixed(2);
 };
