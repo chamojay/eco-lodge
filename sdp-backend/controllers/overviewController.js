@@ -35,6 +35,7 @@ const getOverviewData = async (req, res) => {
           THEN CAST(p.Amount AS DECIMAL(10,2)) 
           ELSE 0 
         END), 0) as RestaurantRevenue,
+        COALESCE(SUM(CAST(p.Amount AS DECIMAL(10,2))), 0) as TotalRevenue,
         COALESCE((
           SELECT SUM(CAST(Amount AS DECIMAL(10,2))) 
           FROM reservation_activities 
@@ -167,7 +168,7 @@ const getOverviewData = async (req, res) => {
         activities: Number(revenue[0]?.ActivityRevenue || 0),
         restaurant: Number(revenue[0]?.RestaurantRevenue || 0),
         extraCharges: Number(revenue[0]?.ExtraCharges || 0),
-        total: 0  // Will be calculated below
+        total: Number(revenue[0]?.TotalRevenue || 0)  // Use TotalRevenue directly from payments table
       },
       bookings: {
         total: Number(bookings[0]?.Total || 0),
@@ -210,12 +211,6 @@ const getOverviewData = async (req, res) => {
         }))
       }
     };
-
-    // Calculate total revenue
-    responseData.revenue.total = responseData.revenue.rooms +
-                                responseData.revenue.activities +
-                                responseData.revenue.restaurant +
-                                responseData.revenue.extraCharges;
 
     // Debug log
     console.log('Sending response:', responseData);
