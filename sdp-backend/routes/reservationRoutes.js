@@ -19,4 +19,7 @@ router.get('/room-status',controller.getAllRoomsStatus);
 //route to update reservation details
 router.put('/update/:id', controller.updateReservation);
 
+//route to create online reservation
+router.post('/web', controller.createWebReservation);
+
 module.exports = router;

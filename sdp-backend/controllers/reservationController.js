@@ -2,7 +2,6 @@ const pool = require('../config/db');
 const emailService = require('../services/emailService');
 
 const ReservationController = {
-  // Update checkAvailability to include room type information
   checkAvailability: async (req, res) => {
     try {
       const { checkIn, checkOut } = req.body;
@@ -29,7 +28,7 @@ const ReservationController = {
     }
   },
 
-  // Update createReservation to use PackageID instead of PackageType
+  // Existing method for reception bookings (unchanged)
   createReservation: async (req, res) => {
     const connection = await pool.getConnection();
     try {
@@ -47,7 +46,7 @@ const ReservationController = {
           customerData.Email,
           customerData.Phone,
           customerData.Country,
-          customerData.NIC,
+          customerData.NIC, // Match field name with frontend if needed
           customerData.PassportNumber
         ]
       );
@@ -75,7 +74,7 @@ const ReservationController = {
           reservationData.CheckInDate,
           reservationData.CheckOutDate,
           reservationData.TotalAmount,
-          reservationData.PackageID,  // Changed from PackageType
+          reservationData.PackageID,
           reservationData.Adults,
           reservationData.Children,
           reservationData.SpecialRequests,
@@ -91,12 +90,11 @@ const ReservationController = {
         [reservationData.PackageID]
       );
 
-      // After successful reservation creation, send confirmation email
+      // Send confirmation email
       try {
         await emailService.sendReservationConfirmation({
           ...reservationResult,
           Email: customerData.Email,
-          Title: customerData.Title,
           FirstName: customerData.FirstName,
           LastName: customerData.LastName,
           RoomNumber: roomNumber,
@@ -124,7 +122,112 @@ const ReservationController = {
     }
   },
 
-  // Fetch active reservations
+  // New method for web bookings
+  createWebReservation: async (req, res) => {
+    const connection = await pool.getConnection();
+    try {
+      await connection.beginTransaction();
+
+      const { roomNumber, customerData, reservationData } = req.body;
+
+      // Insert customer details
+      const [customerResult] = await connection.query(
+        `INSERT INTO customers (FirstName, LastName, Email, Phone, Country, NIC, PassportNumber) 
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [
+          customerData.FirstName,
+          customerData.LastName,
+          customerData.Email,
+          customerData.Phone,
+          customerData.Country,
+          customerData.Nic, // Match field name with frontend
+          customerData.Passport
+        ]
+      );
+
+      // Get Room ID from Room Number
+      const [room] = await connection.query(
+        'SELECT RoomID FROM rooms WHERE RoomNumber = ?',
+        [roomNumber]
+      );
+
+      if (room.length === 0) {
+        throw new Error('Room not found');
+      }
+
+      // Insert reservation with PackageID
+      const [reservationResult] = await connection.query(
+        `INSERT INTO reservations (
+          CustomerID, RoomID, CheckInDate, CheckOutDate, TotalAmount, 
+          PackageID, Adults, Children, SpecialRequests, 
+          ArrivalTime, DepartureTime, Room_Status
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          customerResult.insertId,
+          room[0].RoomID,
+          reservationData.CheckInDate,
+          reservationData.CheckOutDate,
+          reservationData.TotalAmount,
+          reservationData.PackageID,
+          reservationData.Adults,
+          reservationData.Children,
+          reservationData.SpecialRequests,
+          reservationData.ArrivalTime,
+          reservationData.DepartureTime,
+          'Confirmed'
+        ]
+      );
+
+      // Insert payment record for web booking
+      await connection.query(
+        `INSERT INTO payments (Amount, PaymentMethod, ReservationID, Source, PaymentDate) 
+         VALUES (?, ?, ?, ?, NOW())`,
+        [
+          reservationData.TotalAmount,
+          'Online', // Default for web bookings
+          reservationResult.insertId,
+          'Web'
+        ]
+      );
+
+      // Fetch package type information for the email
+      const [packageTypeResult] = await connection.query(
+        `SELECT Name FROM package_types WHERE PackageID = ?`,
+        [reservationData.PackageID]
+      );
+
+      // Send confirmation email
+      try {
+        await emailService.sendReservationConfirmation({
+          ...reservationResult,
+          Email: customerData.Email,
+          FirstName: customerData.FirstName,
+          LastName: customerData.LastName,
+          RoomNumber: roomNumber,
+          PackageName: packageTypeResult[0]?.Name || 'Room Only',
+          CheckInDate: reservationData.CheckInDate,
+          CheckOutDate: reservationData.CheckOutDate,
+          ReservationID: reservationResult.insertId
+        });
+      } catch (emailError) {
+        console.error('Error sending confirmation email:', emailError);
+        // Don't fail the reservation if email fails
+      }
+
+      await connection.commit();
+      
+      res.status(201).json({
+        id: reservationResult.insertId,
+        total: reservationData.TotalAmount
+      });
+    } catch (error) {
+      await connection.rollback();
+      res.status(500).json({ error: error.message });
+    } finally {
+      connection.release();
+    }
+  },
+
   getActiveReservations: async (req, res) => {
     try {
       const [reservations] = await pool.query(
@@ -143,68 +246,66 @@ const ReservationController = {
     }
   },
 
-  // Complete checkout process
   completeCheckout: async (req, res) => {
     const { id } = req.params;
     const { paymentMethod = 'Cash' } = req.body;
 
     const connection = await pool.getConnection();
     try {
-        await connection.beginTransaction();
+      await connection.beginTransaction();
 
-        // Calculate total amount including extra charges and activities
-        const [reservation] = await connection.query(
-            `SELECT 
-                r.TotalAmount,
-                COALESCE(SUM(ec.Amount), 0) as ExtraChargesTotal,
-                COALESCE(
-                    (SELECT SUM(a.LocalPrice * ra.Participants)
-                     FROM reservation_activities ra
-                     JOIN activities a ON ra.ActivityID = a.ActivityID
-                     WHERE ra.ReservationID = r.ReservationID), 0
-                ) as ActivitiesTotal
-            FROM reservations r
-            LEFT JOIN extra_charges ec ON r.ReservationID = ec.ReservationID
-            WHERE r.ReservationID = ?
-            GROUP BY r.ReservationID`,
-            [id]
-        );
+      // Calculate total amount including extra charges and activities
+      const [reservation] = await connection.query(
+        `SELECT 
+            r.TotalAmount,
+            COALESCE(SUM(ec.Amount), 0) as ExtraChargesTotal,
+            COALESCE(
+                (SELECT SUM(a.LocalPrice * ra.Participants)
+                 FROM reservation_activities ra
+                 JOIN activities a ON ra.ActivityID = a.ActivityID
+                 WHERE ra.ReservationID = r.ReservationID), 0
+            ) as ActivitiesTotal
+        FROM reservations r
+        LEFT JOIN extra_charges ec ON r.ReservationID = ec.ReservationID
+        WHERE r.ReservationID = ?
+        GROUP BY r.ReservationID`,
+        [id]
+      );
 
-        const finalTotal = parseFloat(reservation[0].TotalAmount) + 
-                         parseFloat(reservation[0].ExtraChargesTotal) + 
-                         parseFloat(reservation[0].ActivitiesTotal);
+      const finalTotal = parseFloat(reservation[0].TotalAmount) + 
+                        parseFloat(reservation[0].ExtraChargesTotal) + 
+                        parseFloat(reservation[0].ActivitiesTotal);
 
-        // Insert payment record with Source as 'Reception'
-        await connection.query(
-            'INSERT INTO payments (Amount, PaymentMethod, ReservationID, Source) VALUES (?, ?, ?, ?)',
-            [finalTotal, paymentMethod, id, 'Reception']
-        );
+      // Insert payment record with Source as 'Reception'
+      await connection.query(
+        'INSERT INTO payments (Amount, PaymentMethod, ReservationID, Source, PaymentDate) VALUES (?, ?, ?, ?, NOW())',
+        [finalTotal, paymentMethod, id, 'Reception']
+      );
 
-        // Update reservation status
-        await connection.query(
-            'UPDATE reservations SET Room_Status = "Completed" WHERE ReservationID = ?',
-            [id]
-        );
+      // Update reservation status
+      await connection.query(
+        'UPDATE reservations SET Room_Status = "Completed" WHERE ReservationID = ?',
+        [id]
+      );
 
-        await connection.commit();
-        res.json({ 
-            success: true,
-            totalAmount: finalTotal,
-            message: 'Checkout completed and payment recorded'
-        });
+      await connection.commit();
+      res.json({ 
+        success: true,
+        totalAmount: finalTotal,
+        message: 'Checkout completed and payment recorded'
+      });
     } catch (error) {
-        await connection.rollback();
-        console.error('Error completing checkout:', error);
-        res.status(500).json({ 
-            success: false, 
-            error: error.message 
-        });
+      await connection.rollback();
+      console.error('Error completing checkout:', error);
+      res.status(500).json({ 
+        success: false, 
+        error: error.message 
+      });
     } finally {
-        connection.release();
+      connection.release();
     }
   },
 
-  // Update getAllRoomsStatus to include more room type details
   getAllRoomsStatus: async (req, res) => {
     try {
       const [rooms] = await pool.query(
@@ -236,7 +337,6 @@ const ReservationController = {
     }
   },
 
-  // Update reservation (limited fields only)
   updateReservation: async (req, res) => {
     const { id } = req.params;
     const {
@@ -281,7 +381,6 @@ const ReservationController = {
     }
   },
 
-  // Get reservation details
   getReservationDetails: async (req, res) => {
     const { id } = req.params;
     try {
