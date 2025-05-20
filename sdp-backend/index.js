@@ -15,6 +15,8 @@ const userRoutes = require('./routes/userRoutes');
 const roomTypeRoutes = require('./routes/roomTypeRoutes');
 const packageTypeRoutes = require('./routes/packageTypeRoutes');
 const emailRoutes = require('./routes/emailRoutes');
+const overviewRoutes = require('./routes/overviewRoutes');
+
 const path = require('path');
 const app = express();
 const port = 5000;
@@ -39,6 +41,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/room-types', roomTypeRoutes);
 app.use('/api/package-types', packageTypeRoutes);
 app.use('/api/email', emailRoutes);
+app.use('/api/overview', overviewRoutes);
 
 // Global error handler
 app.use((err, req, res, next) => {

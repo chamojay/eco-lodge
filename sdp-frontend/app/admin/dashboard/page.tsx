@@ -15,6 +15,7 @@ import AdminActivity from '@/components/Admin-Activity/page';
 import AdminRestaurant from '@/components/Admin-Restaurant/page';
 import AdminUserMGT from '@/components/Admin-UserMGT/page';
 import PackageTypeManagement from '@/components/Admin-PackageType/PackageTypeManagement';
+import AdminOverview from '@/components/Admin-Overview/page';
 
 type MenuItemType = {
   id: string;
@@ -71,6 +72,8 @@ const AdminDashboard: React.FC = () => {
 
   const renderContent = () => {
     switch (selectedMenu) {
+      case 'overview':
+        return <AdminOverview />;
       case 'rooms':
         return <AdminRooms />;
       case'extra-charges':
