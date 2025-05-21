@@ -90,6 +90,8 @@ const CheckOutComponent = () => {
   const [paymentMethod, setPaymentMethod] = useState<'Cash' | 'Card'>('Cash');
   const [baseAmountPaidOnline, setBaseAmountPaidOnline] = useState<boolean>(false);
   const [paidAmount, setPaidAmount] = useState<number>(0);
+  // Add a new state to track if checkout is completed
+  const [checkoutCompleted, setCheckoutCompleted] = useState(false);
 
   useEffect(() => {
     const fetchInitialData = async () => {
@@ -132,6 +134,7 @@ const CheckOutComponent = () => {
     setSelectedReservation(reservation);
     setBaseAmountPaidOnline(false); // Reset to avoid stale state
     setPaidAmount(0);
+    setCheckoutCompleted(false); // Reset the state
     await fetchReservationDetails(reservation.ReservationID);
     setNewCharge({ ...newCharge, ReservationID: Number(reservation.ReservationID) });
     setView('invoice');
@@ -172,13 +175,7 @@ const CheckOutComponent = () => {
     setProcessing(selectedReservation.ReservationID);
     try {
       const response = await reservationService.completeCheckout(selectedReservation.ReservationID, paymentMethod);
-      setReservations(reservations.filter(r => r.ReservationID !== selectedReservation.ReservationID));
-      setView('list');
-      setSelectedReservation(null);
-      setExtraCharges([]);
-      setActivities([]);
-      setBaseAmountPaidOnline(false);
-      setPaidAmount(0);
+      setCheckoutCompleted(true); // Set to true after successful checkout
       setOpenConfirmDialog(false);
       setOpenSuccessSnackbar(true);
     } catch (error) {
@@ -279,14 +276,14 @@ const CheckOutComponent = () => {
       });
     }
 
-    // Total Amount
+    // Total Amount (updated text)
     doc.text('Payment Summary:', margin, doc.lastAutoTable.finalY + 15);
     const paymentSummary = [
       ['Description', 'Amount (LKR)'],
       ['Base Amount', formatAmount(baseAmountPaidOnline ? paidAmount : selectedReservation.TotalAmount)],
       ['Extra Charges', formatAmount(extraCharges.reduce((sum, charge) => sum + Number(charge.Amount), 0))],
       ['Activities', formatAmount(activities.reduce((sum, activity) => sum + Number(activity.Amount), 0))],
-      ['Total Amount Due', formatAmount(totalInvoice)]
+      ['Total Amount Paid', formatAmount(totalInvoice)] // Changed from 'Total Amount Due'
     ];
     autoTable(doc, {
       startY: doc.lastAutoTable.finalY + 20,
@@ -468,32 +465,41 @@ const CheckOutComponent = () => {
                 </Table>
               </TableContainer>
               <Box sx={{ display: 'flex', gap: 2, justifyContent: 'space-between' }}>
-                <Button 
-                  onClick={generatePDF}
-                  startIcon={<DownloadIcon />}
-                  sx={{ 
-                    bgcolor: '#1a472a', 
-                    color: 'white',
-                    '&:hover': { bgcolor: '#2c6a43' }
-                  }}
-                >
-                  Download Invoice
-                </Button>
-                <Button className={styles.buttonPrimary} onClick={() => setView('addCharge')}>
-                  Add Extra Charge
-                </Button>
-                <Box sx={{ display: 'flex', gap: 2 }}>
-                  <Button variant="outlined" onClick={() => setView('list')}>
-                    Back
-                  </Button>
-                  <Button
-                    className={styles.buttonPrimary}
-                    onClick={() => setOpenConfirmDialog(true)}
-                    disabled={processing === selectedReservation?.ReservationID}
+                {checkoutCompleted && ( // Only show download button after checkout
+                  <Button 
+                    onClick={generatePDF}
+                    startIcon={<DownloadIcon />}
+                    sx={{ 
+                      bgcolor: '#1a472a', 
+                      color: 'white',
+                      '&:hover': { bgcolor: '#2c6a43' }
+                    }}
                   >
-                    {processing === selectedReservation?.ReservationID ? <CircularProgress size={24} /> : 'Proceed to Checkout'}
+                    Download Invoice
                   </Button>
-                </Box>
+                )}
+                {!checkoutCompleted && ( // Show these buttons before checkout
+                  <>
+                    <Button className={styles.buttonPrimary} onClick={() => setView('addCharge')}>
+                      Add Extra Charge
+                    </Button>
+                    <Box sx={{ display: 'flex', gap: 2 }}>
+                      <Button variant="outlined" onClick={() => setView('list')}>
+                        Back
+                      </Button>
+                      <Button
+                        className={styles.buttonPrimary}
+                        onClick={() => setOpenConfirmDialog(true)}
+                        disabled={processing === selectedReservation?.ReservationID}
+                      >
+                        {processing === selectedReservation?.ReservationID ? 
+                          <CircularProgress size={24} /> : 
+                          'Proceed to Checkout'
+                        }
+                      </Button>
+                    </Box>
+                  </>
+                )}
               </Box>
             </>
           ) : (
