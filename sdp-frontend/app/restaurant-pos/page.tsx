@@ -25,9 +25,10 @@ import ProtectedRoute from '@/components/ProtectedRoute';
 interface MenuItem {
   ItemID: number;
   Name: string;
-  Price: string | number; // Change to handle both string and number
+  Price: string | number;
   CategoryID: number;
-  ImagePath: string | null;
+  ImagePath: string;
+  Description?: string;
 }
 
 interface Category {
@@ -196,7 +197,21 @@ const POSPage = () => {
         <Grid container spacing={3}>
           {/* Menu Section */}
           <Grid item xs={8}>
-            <FormControl fullWidth sx={{ mb: 3 }}>
+            <FormControl 
+              fullWidth 
+              sx={{ 
+                mb: 3,
+                '& .MuiOutlinedInput-root': {
+                  bgcolor: 'white',
+                  borderRadius: 2,
+                  '&:hover': {
+                    '& > fieldset': {
+                      borderColor: 'primary.main',
+                    }
+                  }
+                }
+              }}
+            >
               <InputLabel>Category</InputLabel>
               <Select
                 value={selectedCategory}
@@ -215,19 +230,110 @@ const POSPage = () => {
               {menuItems
                 .filter((item) => item.CategoryID === selectedCategory)
                 .map((item) => (
-                  <Grid item xs={4} key={item.ItemID}>
+                  <Grid item xs={12} sm={6} md={4} key={item.ItemID}>
                     <Card
                       sx={{
                         cursor: "pointer",
-                        "&:hover": { transform: "scale(1.02)" },
-                        transition: "transform 0.2s",
+                        height: '100%',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        transition: "transform 0.2s, box-shadow 0.2s",
+                        "&:hover": { 
+                          transform: "translateY(-4px)",
+                          boxShadow: 6,
+                        },
+                        position: 'relative',
+                        overflow: 'hidden',
                       }}
                       onClick={() => handleAddToCart(item)}
                     >
-                      <CardContent>
-                        <Typography variant="h6">{item.Name}</Typography>
-                        <Typography color="primary">
+                      <Box
+                        sx={{
+                          position: 'relative',
+                          paddingTop: '56.25%' // 16:9 aspect ratio
+                        }}
+                      >
+                        {item.ImagePath ? (
+                          <Box
+                            component="img"
+                            src={item.ImagePath || '/images/default-food.jpg'}
+                            alt={item.Name}
+                            sx={{
+                              position: 'absolute',
+                              top: 0,
+                              left: 0,
+                              width: '100%',
+                              height: '100%',
+                              objectFit: 'cover',
+                            }}
+                            onError={(e) => {
+                              const target = e.target as HTMLImageElement;
+                              target.src = '/images/default-food.jpg';
+                            }}
+                          />
+                        ) : (
+                          <Box
+                            sx={{
+                              position: 'absolute',
+                              top: 0,
+                              left: 0,
+                              width: '100%',
+                              height: '100%',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              bgcolor: 'grey.200'
+                            }}
+                          >
+                            <Typography color="textSecondary">No image</Typography>
+                          </Box>
+                        )}
+                      </Box>
+                      <CardContent sx={{ flexGrow: 1 }}>
+                        <Typography 
+                          variant="h6" 
+                          sx={{ 
+                            fontSize: '1.1rem',
+                            fontWeight: 600,
+                            mb: 1
+                          }}
+                        >
+                          {item.Name}
+                        </Typography>
+                        {item.Description && (
+                          <Typography 
+                            variant="body2" 
+                            color="text.secondary"
+                            sx={{ mb: 1 }}
+                          >
+                            {item.Description}
+                          </Typography>
+                        )}
+                        <Typography 
+                          color="primary"
+                          variant="h6"
+                          sx={{ 
+                            fontWeight: 600,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between'
+                          }}
+                        >
                           Rs. {formatPrice(item.Price)}
+                          <Button 
+                            size="small" 
+                            variant="contained" 
+                            sx={{ 
+                              minWidth: 'auto',
+                              px: 1,
+                              bgcolor: 'primary.main',
+                              '&:hover': {
+                                bgcolor: 'primary.dark'
+                              }
+                            }}
+                          >
+                            Add
+                          </Button>
                         </Typography>
                       </CardContent>
                     </Card>
@@ -238,8 +344,26 @@ const POSPage = () => {
 
           {/* Cart Section */}
           <Grid item xs={4}>
-            <Card sx={{ p: 2, position: "sticky", top: 20 }}>
-              <Typography variant="h5" gutterBottom>
+            <Card 
+              sx={{ 
+                p: 2, 
+                position: "sticky", 
+                top: 20,
+                borderRadius: 2,
+                boxShadow: 3,
+                bgcolor: 'white'
+              }}
+            >
+              <Typography 
+                variant="h5" 
+                gutterBottom
+                sx={{
+                  borderBottom: 1,
+                  borderColor: 'divider',
+                  pb: 1,
+                  mb: 2
+                }}
+              >
                 Cart
               </Typography>
 
